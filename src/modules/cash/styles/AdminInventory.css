@@ -1,0 +1,1309 @@
+/* ==========================================================================
+   ADMIN INVENTORY STYLES
+   Tema claro alineado con el resto del admin (tokens de AdminLayout.css).
+   Mismo barrido que CashSystem.css. Los colores semanticos (success / warn /
+   danger) se preservan; los fondos translucidos blancos y textos claros
+   pensados para fondo oscuro se mapean a tokens admin.
+   ========================================================================== */
+
+.admin-layout .inventory-view {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    color: var(--admin-text);
+    animation: fadeIn 0.4s ease;
+}
+
+/* HEADER */
+.admin-layout .inventory-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.admin-layout .inventory-header h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.admin-layout .inventory-header--toolbar-only {
+    justify-content: flex-end;
+}
+
+/* SUMMARY BAR */
+.admin-layout .inventory-summary {
+    display: flex;
+    gap: 20px;
+    padding: 15px;
+    background: var(--admin-card-bg); /* Glass */
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    align-items: center;
+    font-size: 0.9rem;
+    flex-wrap: wrap;
+}
+
+.admin-layout .summary-item {
+    font-weight: 600;
+}
+
+.admin-layout .text-success { color: #4ade80; }
+.admin-layout .text-warning { color: #facc15; }
+.admin-layout .text-danger { color: #f87171; }
+
+.admin-layout .search-inventory {
+    margin-left: auto;
+    width: 300px;
+    background: white;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    height: 36px;
+    min-width: 220px;
+}
+
+.admin-layout .search-inventory input {
+    border: none;
+    background: transparent;
+    width: 100%;
+    margin-left: 8px;
+    outline: none;
+    color: var(--admin-text);
+    font-size: 0.9rem;
+}
+
+/* TABLE */
+.admin-layout .inventory-table-container {
+    background: var(--admin-card-bg);
+    border-radius: 12px;
+    border: 1px solid var(--admin-border);
+    overflow: hidden;
+}
+
+.admin-layout .inventory-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 900px;
+}
+
+.admin-layout .inventory-table th {
+    text-align: left;
+    padding: 12px 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--admin-border);
+    background: var(--admin-card-bg);
+}
+
+.admin-layout .inventory-table td {
+    padding: 12px 20px;
+    font-size: 0.9rem;
+    color: var(--admin-text);
+    border-bottom: 1px solid var(--admin-border);
+    vertical-align: middle;
+}
+
+.admin-layout .inventory-table tr:hover td {
+    background: var(--admin-card-bg);
+}
+
+.admin-layout .inventory-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* CONTROLS */
+.admin-layout .switch-control {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+}
+
+.admin-layout .switch-control input { 
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.admin-layout .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #4b5563; /* Gray closed */
+    transition: .4s;
+    border-radius: 20px;
+}
+
+.admin-layout .slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+.admin-layout input:checked + .slider {
+    background-color: var(--admin-accent);
+}
+
+.admin-layout input:checked + .slider:before {
+    transform: translateX(20px);
+}
+
+/* DISPONIBILIDAD BADGE/SELECT */
+.admin-layout .stock-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.admin-layout .stock-badge.available {
+    background: rgba(37, 211, 102, 0.2);
+    color: #4ade80;
+}
+
+.admin-layout .stock-badge.low {
+    background: rgba(250, 204, 21, 0.2);
+    color: #facc15;
+}
+
+.admin-layout .stock-badge.out {
+    background: rgba(248, 113, 113, 0.2);
+    color: #f87171;
+}
+
+/* INPUTS DE STOCK */
+.admin-layout .stock-input-wrapper {
+    display: flex;
+    align-items: center;
+    background: white;
+    border-radius: 6px;
+    padding: 2px 5px;
+    width: 80px;
+    border: 1px solid transparent;
+}
+
+.admin-layout .stock-input-wrapper.alert {
+    border-color: #f87171;
+}
+
+.admin-layout .stock-input-wrapper input {
+    width: 100%;
+    border: none;
+    outline: none;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--admin-text);
+}
+
+.admin-layout .edit-icon {
+    color: var(--admin-text-muted);
+    margin-left: 2px;
+}
+
+/* Sub-navegación y vistas (paridad estructural con tenant AdminInventory.css; tema oscuro) */
+.admin-layout .inventory-subtabs {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px 12px;
+    padding-bottom: 16px;
+    margin: 0;
+    border-bottom: 1px solid var(--admin-border);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.admin-layout .inventory-subtab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex: 0 0 auto;
+    padding: 8px 16px;
+    margin: 0;
+    border: 1px solid var(--admin-border);
+    border-radius: 20px;
+    background: var(--admin-card-bg);
+    color: var(--admin-text);
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    white-space: nowrap;
+}
+
+.admin-layout .inventory-subtab svg {
+    flex-shrink: 0;
+    opacity: 0.9;
+}
+
+.admin-layout .inventory-subtab:hover {
+    background: var(--admin-icon-bg);
+    color: var(--admin-text);
+}
+
+.admin-layout .inventory-subtab--active {
+    background: color-mix(in srgb, var(--accent-primary, var(--admin-accent)) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent-primary, var(--admin-accent)) 50%, transparent);
+    color: var(--admin-text);
+    font-weight: 700;
+}
+
+.admin-layout .inventory-subtab--active svg {
+    opacity: 1;
+    color: var(--accent-primary, var(--admin-accent));
+}
+
+.admin-layout .inventory-subtab:focus-visible {
+    outline: 2px solid var(--accent-primary, var(--admin-accent));
+    outline-offset: 2px;
+}
+
+.admin-layout .inventory-summary.inventory-summary--grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+    gap: 16px 18px;
+    padding: 22px 24px;
+    margin: 0;
+    border-radius: 16px;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-card-bg);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    flex-wrap: unset;
+}
+
+@media (min-width: 960px) {
+    .admin-layout .inventory-summary.inventory-summary--grid {
+        grid-template-columns: repeat(3, minmax(156px, 1fr)) minmax(280px, 1.35fr);
+    }
+}
+
+.admin-layout .summary-card {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-card-bg);
+}
+
+.admin-layout .summary-card__icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    flex-shrink: 0;
+    background: var(--admin-card-bg);
+    border: 1px solid var(--admin-border);
+    color: var(--admin-text-muted);
+}
+
+.admin-layout .summary-card--warn .summary-card__icon-wrap {
+    color: #facc15;
+    border-color: rgba(250, 204, 21, 0.35);
+    background: rgba(250, 204, 21, 0.08);
+}
+
+.admin-layout .summary-card--danger .summary-card__icon-wrap {
+    color: #f87171;
+    border-color: rgba(248, 113, 113, 0.35);
+    background: rgba(248, 113, 113, 0.08);
+}
+
+.admin-layout .summary-card__text {
+    min-width: 0;
+}
+
+.admin-layout .summary-card__value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--admin-text);
+}
+
+.admin-layout .summary-card__label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--admin-text-muted);
+    margin-top: 4px;
+}
+
+.admin-layout .summary-card--warn .summary-card__value {
+    color: #facc15;
+}
+
+.admin-layout .summary-card--danger .summary-card__value {
+    color: #f87171;
+}
+
+.admin-layout .summary-card--actions {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 14px;
+    background: var(--admin-card-bg);
+    border-style: dashed;
+}
+
+.admin-layout .summary-card--actions .summary-card__hint {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.55;
+    color: var(--admin-text-muted);
+    font-weight: 500;
+}
+
+.admin-layout .summary-card__actions-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-layout .inventory-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    padding: 15px;
+    margin: 0;
+    border-radius: 14px;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-card-bg);
+}
+
+.admin-layout .inventory-toolbar--recipes {
+    justify-content: flex-start;
+}
+
+.admin-layout .inventory-toolbar .search-inventory {
+    margin-left: auto;
+    flex: 0 1 320px;
+    max-width: 420px;
+}
+
+.admin-layout .inventory-toolbar--recipes .search-inventory {
+    margin-left: 0;
+    flex: 1 1 min(280px, 100%);
+    max-width: 440px;
+    min-width: 0;
+    width: auto;
+}
+
+.admin-layout .inventory-toolbar__chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+}
+
+.admin-layout .inventory-chip {
+    padding: 6px 16px;
+    margin: 0;
+    border-radius: 20px;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-card-bg);
+    color: var(--admin-text);
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    white-space: nowrap;
+}
+
+.admin-layout .inventory-chip:hover {
+    background: var(--admin-icon-bg);
+    color: var(--admin-text);
+}
+
+.admin-layout .inventory-chip--active {
+    background: color-mix(in srgb, var(--accent-primary, var(--admin-accent)) 22%, transparent);
+    border-color: color-mix(in srgb, var(--accent-primary, var(--admin-accent)) 50%, transparent);
+    color: var(--admin-text);
+    font-weight: 700;
+}
+
+.admin-layout .inventory-search-icon {
+    color: var(--admin-text-muted);
+    flex-shrink: 0;
+}
+
+.admin-layout .inventory-loading,
+.admin-layout .inventory-muted {
+    padding: 20px 16px;
+    font-size: 0.9rem;
+    color: var(--admin-text-muted);
+}
+
+.admin-layout .inventory-empty {
+    padding: 36px 28px;
+    border-radius: 16px;
+    text-align: center;
+    margin: 0;
+    border: 1px dashed var(--admin-border);
+    background: var(--admin-card-bg);
+}
+
+.admin-layout .inventory-empty p {
+    margin: 0 0 16px;
+    color: var(--admin-text-muted);
+    font-size: 0.95rem;
+    font-weight: 500;
+    line-height: 1.5;
+}
+
+.admin-layout .inventory-th-sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary, #9ca3af);
+    cursor: pointer;
+    text-align: left;
+}
+
+.admin-layout .inventory-th-sort:hover {
+    color: var(--admin-accent);
+}
+
+.admin-layout .inventory-th-expand {
+    width: 44px;
+    padding-left: 12px !important;
+    padding-right: 8px !important;
+}
+
+.admin-layout .inventory-td-expand {
+    width: 44px;
+    vertical-align: middle;
+    text-align: center;
+}
+
+.admin-layout .inventory-expand-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: var(--admin-icon-bg);
+    color: var(--admin-text);
+    cursor: pointer;
+}
+
+.admin-layout .inventory-expand-btn:hover {
+    background: var(--admin-icon-bg);
+}
+
+.admin-layout .inventory-expand-panel {
+    padding: 14px 18px;
+    background: var(--admin-card-bg);
+    border-radius: 10px;
+    border: 1px solid var(--admin-border);
+}
+
+.admin-layout .inventory-expand-panel strong {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--admin-text-muted);
+}
+
+.admin-layout .inventory-expand-empty {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--admin-text-muted);
+}
+
+.admin-layout .inventory-expand-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.admin-layout .inventory-expand-list li {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    gap: 10px 14px;
+    align-items: baseline;
+    font-size: 0.875rem;
+}
+
+.admin-layout .inventory-expand-type {
+    font-weight: 600;
+    color: var(--admin-text);
+}
+
+.admin-layout .inventory-expand-delta {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-layout .inventory-expand-delta.neg {
+    color: #f87171;
+}
+
+.admin-layout .inventory-expand-delta.pos {
+    color: #4ade80;
+}
+
+.admin-layout .inventory-expand-meta {
+    color: var(--admin-text-muted);
+    font-size: 0.8125rem;
+}
+
+.admin-layout .inventory-row--open td {
+    background: color-mix(in srgb, var(--admin-accent) 10%, transparent);
+}
+
+.admin-layout .inventory-expand-row td {
+    padding: 0 20px 16px !important;
+}
+
+.admin-layout .inventory-movements {
+    padding: 22px 24px;
+    border-radius: 16px;
+    margin: 0;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-card-bg);
+}
+
+.admin-layout .inventory-table--compact th,
+.admin-layout .inventory-table--compact td {
+    padding: 10px 14px;
+    font-size: 0.875rem;
+}
+
+.admin-layout .inventory-recipes {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(16px, 4.5vw, 24px);
+    min-width: 0;
+}
+
+.admin-layout .inventory-recipes__lead {
+    padding: clamp(16px, 4.5vw, 22px) clamp(18px, 5vw, 26px) clamp(16px, 4.5vw, 22px)
+        clamp(20px, 5.5vw, 28px);
+    border-radius: 14px;
+    margin: 0;
+    font-size: clamp(0.875rem, 2.6vw, 0.9375rem);
+    line-height: 1.55;
+    font-weight: 500;
+    color: var(--admin-text-muted);
+    border: 1px solid var(--admin-border);
+    border-left: 4px solid var(--accent-primary, var(--admin-accent));
+    background: var(--admin-card-bg);
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    text-wrap: pretty;
+}
+
+.admin-layout .inventory-context-hint {
+    margin: 0 0 clamp(12px, 3vw, 16px);
+    padding: clamp(12px, 3vw, 14px) clamp(14px, 3.5vw, 18px);
+    border-radius: 12px;
+    font-size: clamp(0.8125rem, 2.4vw, 0.875rem);
+    line-height: 1.5;
+    font-weight: 500;
+    color: var(--admin-text-muted);
+    background: var(--admin-card-bg);
+    border: 1px solid var(--admin-border);
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.admin-layout .inventory-context-hint strong {
+    color: var(--admin-text);
+    font-weight: 700;
+}
+
+.admin-layout .inventory-cart-unlinked-banner {
+    width: 100%;
+    min-width: 0;
+    align-self: stretch;
+    margin: 0 0 clamp(12px, 3vw, 16px);
+    padding: clamp(16px, 3.5vw, 20px) clamp(18px, 4vw, 22px);
+    border-radius: 14px;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-card-bg);
+    box-sizing: border-box;
+}
+
+.admin-layout .inventory-cart-unlinked-banner__top {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.admin-layout .inventory-cart-unlinked-banner__icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    flex-shrink: 0;
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    background: rgba(251, 191, 36, 0.1);
+}
+
+.admin-layout .inventory-cart-unlinked-banner__copy {
+    flex: 1;
+    min-width: 0;
+}
+
+.admin-layout .inventory-cart-unlinked-banner__title {
+    display: block;
+    font-size: clamp(0.875rem, 2.5vw, 0.9375rem);
+    font-weight: 700;
+    color: var(--admin-text);
+    margin: 0 0 6px;
+    line-height: 1.35;
+    letter-spacing: -0.02em;
+}
+
+.admin-layout .inventory-cart-unlinked-banner__lead {
+    margin: 0;
+    font-size: clamp(0.8125rem, 2.4vw, 0.875rem);
+    line-height: 1.55;
+    font-weight: 500;
+    color: var(--admin-text-muted);
+}
+
+.admin-layout .inventory-cart-unlinked-banner__lead strong {
+    color: var(--admin-text);
+    font-weight: 700;
+}
+
+.admin-layout .inventory-cart-unlinked-banner__folds {
+    margin-top: 16px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: var(--admin-card-bg);
+    border: 1px solid var(--admin-border);
+}
+
+.admin-layout .inventory-cart-unlinked-folds {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.admin-layout .inventory-cart-unlinked-fold {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    overflow: visible;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-layout .inventory-cart-unlinked-fold:last-child {
+    border-bottom: none;
+}
+
+.admin-layout .inventory-cart-unlinked-fold__summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 8px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--admin-text);
+    user-select: none;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+}
+
+.admin-layout .inventory-cart-unlinked-fold__summary:hover {
+    background: var(--admin-card-bg);
+}
+
+.admin-layout .inventory-cart-unlinked-fold__summary::-webkit-details-marker {
+    display: none;
+}
+
+.admin-layout .inventory-cart-unlinked-fold__chev {
+    flex-shrink: 0;
+    color: var(--admin-text-muted);
+    transition: transform 0.2s ease;
+}
+
+.admin-layout .inventory-cart-unlinked-fold[open] .inventory-cart-unlinked-fold__chev {
+    transform: rotate(90deg);
+}
+
+.admin-layout .inventory-cart-unlinked-fold__label {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+}
+
+.admin-layout .inventory-cart-unlinked-fold__count {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 800;
+    min-width: 1.5rem;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--admin-card-bg);
+    color: var(--admin-text);
+    border: 1px solid var(--admin-border);
+}
+
+.admin-layout .inventory-cart-unlinked-fold__body {
+    padding: 0 8px 12px 36px;
+    border: none;
+    background: transparent;
+}
+
+.admin-layout .inventory-cart-unlinked-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.admin-layout .inventory-cart-unlinked-list li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 12px;
+    padding: 12px 4px;
+    border-radius: 0;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-layout .inventory-cart-unlinked-list li:last-child {
+    border-bottom: none;
+}
+
+.admin-layout .inventory-cart-unlinked-list__name {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--admin-text);
+    flex: 1 1 160px;
+    min-width: 0;
+}
+
+.admin-layout .inventory-cart-unlinked-list__tag {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--admin-icon-bg);
+    color: var(--admin-text-muted);
+    border: 1px solid var(--admin-border);
+}
+
+.admin-layout .inventory-cart-link-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 8px;
+    padding: 2px 8px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-radius: 6px;
+    vertical-align: middle;
+    background: color-mix(in srgb, var(--admin-accent) 12%, transparent);
+    color: var(--admin-accent);
+    border: 1px solid color-mix(in srgb, var(--admin-accent) 30%, transparent);
+}
+
+.admin-layout .inventory-toolbar__chip-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--admin-text-muted);
+    margin-right: 4px;
+    align-self: center;
+}
+
+.admin-layout .inventory-toolbar__chips--wrap {
+    flex-wrap: wrap;
+}
+
+.admin-layout .inventory-type-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--admin-text-muted);
+}
+
+.admin-layout .inventory-beverage-kind {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--admin-text-muted);
+}
+
+.admin-layout .inventory-td-tags {
+    font-size: 0.78rem;
+    max-width: 140px;
+}
+
+.admin-layout .inventory-tag-pill {
+    display: inline-block;
+    margin: 2px 4px 2px 0;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    background: var(--admin-icon-bg);
+    color: var(--admin-text-muted);
+    border: 1px solid var(--admin-border);
+}
+
+.admin-layout .inventory-recipe-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 212px), 1fr));
+    gap: clamp(10px, 2.5vw, 14px);
+}
+
+.admin-layout .inventory-recipe-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 18px 20px;
+    border-radius: 14px;
+    text-align: left;
+    cursor: pointer;
+    border: 1px solid var(--admin-border);
+    transition: border-color 0.15s ease;
+}
+
+.admin-layout .inventory-recipe-card:hover {
+    border-color: var(--admin-accent);
+}
+
+.admin-layout .inventory-recipe-card strong {
+    font-size: 0.95rem;
+    color: var(--admin-text);
+}
+
+.admin-layout .inventory-recipe-card__meta {
+    font-size: 0.8rem;
+    color: var(--admin-text-muted);
+    font-weight: 600;
+}
+
+.admin-layout .inventory-recipe-card__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+}
+
+.admin-layout .inventory-recipe-card__title-wrap {
+    min-width: 0;
+    flex: 1;
+}
+
+.admin-layout .inventory-recipe-card__icon {
+    flex-shrink: 0;
+    color: var(--admin-text-muted);
+    opacity: 0.9;
+}
+
+.admin-layout .inventory-recipe-card:hover .inventory-recipe-card__icon {
+    color: var(--accent-primary, var(--admin-accent));
+    opacity: 1;
+}
+
+.admin-layout .inventory-recipe-card__badge {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.admin-layout .inventory-recipe-card__badge--empty {
+    background: rgba(250, 204, 21, 0.15);
+    color: #facc15;
+    border: 1px solid rgba(250, 204, 21, 0.35);
+}
+
+.admin-layout .inventory-recipe-card__badge--ok {
+    background: rgba(74, 222, 128, 0.12);
+    color: #4ade80;
+    border: 1px solid rgba(74, 222, 128, 0.28);
+}
+
+/* Modales y formulario inventario (tema oscuro kit) */
+.admin-layout .modal-content.inventory-item-modal {
+    max-width: 520px;
+    width: 100%;
+}
+
+.admin-layout .modal-content.inventory-recipe-modal {
+    max-width: 640px;
+    width: 100%;
+}
+
+.admin-layout .modal-content.inventory-item-modal .modal-header h3,
+.admin-layout .modal-content.inventory-recipe-modal .modal-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--admin-text);
+}
+
+.admin-layout .inventory-modal-subtitle {
+    margin: 6px 0 0;
+    font-size: 0.875rem;
+    color: var(--admin-text-muted);
+    font-weight: 500;
+    line-height: 1.45;
+}
+
+.admin-layout .modal-content.inventory-item-modal form,
+.admin-layout .modal-content.inventory-recipe-modal form {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.admin-layout .modal-content.inventory-item-modal .modal-form-scroll,
+.admin-layout .modal-content.inventory-recipe-modal .modal-form-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.admin-layout .inventory-form-row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 20px;
+}
+
+@media (max-width: 540px) {
+    .admin-layout .inventory-form-row-2 {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+}
+
+.admin-layout .inventory-form-select {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-card-bg);
+    color: var(--admin-text);
+    font-size: 0.95rem;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.admin-layout .inventory-form-hint {
+    margin: 6px 0 0;
+    font-size: 0.8125rem;
+    color: var(--admin-text-muted);
+    font-weight: 500;
+    line-height: 1.45;
+}
+
+.admin-layout .inventory-branch-readonly {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: var(--admin-card-bg);
+    border: 1px solid var(--admin-border);
+    color: var(--admin-text);
+}
+
+.admin-layout .inventory-branch-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--admin-text);
+    margin-bottom: 10px;
+}
+
+.admin-layout .inventory-branch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+    gap: 10px;
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-card-bg);
+}
+
+.admin-layout .inventory-branch-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-card-bg);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--admin-text-muted);
+    cursor: pointer;
+}
+
+.admin-layout .inventory-branch-option--checked {
+    border-color: var(--admin-accent);
+    background: color-mix(in srgb, var(--admin-accent) 14%, transparent);
+    color: var(--admin-text);
+}
+
+.admin-layout .inventory-branch-error {
+    margin: 8px 0 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #f87171;
+}
+
+.admin-layout .inventory-recipe-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.admin-layout .inventory-recipe-line {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 132px 44px;
+    gap: 12px 14px;
+    align-items: end;
+    padding: 16px 18px;
+    border-radius: 12px;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-card-bg);
+}
+
+@media (max-width: 600px) {
+    .admin-layout .inventory-recipe-line {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .admin-layout .inventory-recipe-line__remove {
+        justify-self: end;
+    }
+}
+
+.admin-layout .inventory-recipe-line__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.admin-layout .inventory-recipe-line__field label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--admin-text-muted);
+}
+
+.admin-layout .inventory-recipe-line__remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 10px;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-card-bg);
+    color: var(--admin-text-muted);
+    cursor: pointer;
+}
+
+.admin-layout .inventory-recipe-line__remove:hover {
+    background: rgba(248, 113, 113, 0.15);
+    border-color: rgba(248, 113, 113, 0.4);
+    color: #f87171;
+}
+
+.admin-layout .inventory-recipe-empty-hint {
+    margin: 0 0 12px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px dashed var(--admin-border);
+    background: var(--admin-card-bg);
+    font-size: 0.875rem;
+    color: var(--admin-text-muted);
+    font-weight: 500;
+}
+
+.admin-layout .inventory-td-name {
+    font-weight: 600;
+    color: var(--admin-text);
+}
+
+.admin-layout .inventory-td-unit {
+    color: var(--admin-text-muted);
+}
+
+.admin-layout .inventory-td-stock {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--admin-text);
+}
+
+.admin-layout .inventory-td-actions {
+    text-align: right;
+}
+
+.admin-layout .inventory-row-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.admin-layout .inventory-movement-delta {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-layout .inventory-movement-delta--neg {
+    color: #f87171;
+}
+
+.admin-layout .inventory-movement-delta--pos {
+    color: #4ade80;
+}
+
+.admin-layout .inventory-recipes-empty {
+    margin: 0;
+    padding: 28px 20px;
+    text-align: center;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--admin-text-muted);
+    border: 1px dashed var(--admin-border);
+    border-radius: 14px;
+    background: var(--admin-card-bg);
+}
+
+@media (max-width: 768px) {
+    .admin-layout .inventory-table-container {
+        overflow-x: auto;
+    }
+    .admin-layout .inventory-header, 
+    .admin-layout .inventory-summary {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .admin-layout .search-inventory {
+        width: 100%;
+        margin-top: 10px;
+        margin-left: 0;
+    }
+
+    .admin-layout .inventory-header h1 {
+        font-size: 1.4rem;
+    }
+
+    .admin-layout .inventory-header > div:last-child {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .admin-layout .inventory-header > div:last-child button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .admin-layout .inventory-summary.inventory-summary--grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-layout .inventory-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        padding: clamp(10px, 2.8vw, 15px);
+        gap: clamp(10px, 2.5vw, 15px);
+    }
+
+    .admin-layout .inventory-toolbar .search-inventory {
+        max-width: none;
+        width: 100%;
+        flex: 0 1 auto;
+        flex-grow: 0;
+        min-width: 0;
+        height: 36px;
+        min-height: 36px;
+    }
+
+    .admin-layout .inventory-view {
+        padding: clamp(12px, 3.2vw, 20px);
+        gap: clamp(14px, 3vw, 20px);
+    }
+
+    .admin-layout .inventory-recipes-empty {
+        padding: clamp(18px, 4vw, 28px) clamp(14px, 3.5vw, 20px);
+        font-size: clamp(0.875rem, 2.6vw, 0.9375rem);
+    }
+}

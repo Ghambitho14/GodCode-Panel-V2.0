@@ -1,0 +1,277 @@
+/* =========================================
+   INVENTORY CARDS — tema claro (Jobie-like)
+   ========================================= */
+
+.admin-layout .inventory-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+	gap: 22px;
+	padding-bottom: 40px;
+	animation: fadeIn 0.4s ease-out;
+}
+
+.admin-layout .inventory-card {
+	background: var(--admin-card-bg, #fff);
+	border: 1px solid var(--admin-border, #e2e8f0);
+	border-radius: 14px;
+	box-shadow: var(--admin-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.06));
+	overflow: hidden;
+	position: relative;
+	transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.2s ease;
+	cursor: pointer;
+	-webkit-user-select: none;
+	user-select: none;
+	display: flex;
+	flex-direction: column;
+	-webkit-backdrop-filter: none;
+	backdrop-filter: none;
+}
+
+.admin-layout .inventory-card:hover {
+	transform: translateY(-4px);
+	border-color: color-mix(in srgb, var(--accent-primary) 22%, var(--admin-border));
+	box-shadow: var(--admin-shadow-md, 0 12px 40px rgba(15, 23, 42, 0.12));
+}
+
+.admin-layout .inventory-card:focus-visible {
+	outline: 2px solid var(--admin-accent, var(--accent-primary));
+	outline-offset: 4px;
+}
+
+.admin-layout .inventory-card.inactive {
+	opacity: 0.88;
+}
+
+.admin-layout .inventory-card.inactive .inv-img-wrapper img {
+	filter: grayscale(100%);
+	opacity: 0.65;
+}
+
+.admin-layout .inv-img-wrapper {
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	position: relative;
+	overflow: hidden;
+	background: var(--admin-icon-bg, #f8fafc);
+}
+
+.admin-layout .inv-img-wrapper img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	transition: transform 0.5s ease;
+}
+
+.admin-layout .inventory-card:hover .inv-img-wrapper img {
+	transform: scale(1.05);
+}
+
+.admin-layout .inv-status-toggle {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	width: 36px;
+	height: 36px;
+	border-radius: 10px;
+	background: rgba(255, 255, 255, 0.92);
+	border: 1px solid var(--admin-border, #e2e8f0);
+	color: var(--admin-text, #0f172a);
+	box-shadow: var(--admin-shadow-sm);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: all 0.2s;
+	z-index: 2;
+	-webkit-backdrop-filter: none;
+	backdrop-filter: none;
+}
+
+.admin-layout .inv-status-toggle:hover {
+	background: var(--admin-card-bg);
+	color: var(--admin-accent);
+	border-color: color-mix(in srgb, var(--accent-primary) 35%, var(--admin-border));
+	transform: scale(1.06);
+}
+
+.admin-layout .inv-status-toggle.off {
+	background: color-mix(in srgb, var(--admin-danger, #dc2626) 12%, var(--admin-card-bg));
+	color: var(--admin-danger, #dc2626);
+	border-color: rgba(220, 38, 38, 0.35);
+}
+
+.admin-layout .inv-info {
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	gap: 12px;
+}
+
+.admin-layout .inv-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 10px;
+}
+
+.admin-layout .inv-title-row {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	flex: 1;
+}
+
+.admin-layout .inv-header h4 {
+	font-size: 1rem;
+	font-weight: 700;
+	margin: 0;
+	line-height: 1.3;
+	color: var(--admin-text, #0f172a);
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.admin-layout .badge-special {
+	font-size: 0.75rem;
+	color: var(--admin-accent, var(--accent-secondary));
+	font-weight: 600;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.admin-layout .inv-description {
+	font-size: 0.85rem;
+	color: var(--admin-text-muted, #64748b);
+	margin: 0;
+	line-height: 1.4;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.admin-layout .price-container {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	text-align: right;
+}
+
+.admin-layout .inv-price {
+	font-weight: 800;
+	color: var(--admin-text, #0f172a);
+	font-size: 1rem;
+	white-space: nowrap;
+}
+
+.admin-layout .inv-price.discount {
+	color: var(--discount-color, #16a34a);
+	font-size: 1.1rem;
+}
+
+.admin-layout .inv-price-original {
+	font-size: 0.75rem;
+	text-decoration: line-through;
+	color: var(--admin-text-muted, #94a3b8);
+	margin-bottom: 2px;
+}
+
+.admin-layout .inv-actions {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-top: auto;
+	padding-top: 12px;
+	border-top: 1px solid var(--admin-border, #e2e8f0);
+}
+
+.admin-layout .inventory-card .status-badge {
+	font-size: 0.65rem;
+	padding: 4px 8px;
+	border-radius: 8px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+.admin-layout .inventory-card .status-badge.active {
+	background: rgba(22, 163, 74, 0.12);
+	color: #16a34a;
+	border: 1px solid rgba(22, 163, 74, 0.25);
+}
+
+.admin-layout .inventory-card .status-badge.paused {
+	background: var(--admin-icon-bg, #f8fafc);
+	color: var(--admin-text-muted, #64748b);
+	border: 1px solid var(--admin-border, #e2e8f0);
+}
+
+.admin-layout .action-buttons {
+	display: flex;
+	gap: 8px;
+}
+
+.admin-layout .btn-icon-sm,
+.admin-layout .btn-trash-sm {
+	background: var(--admin-icon-bg, #f8fafc);
+	border: 1px solid var(--admin-border, #e2e8f0);
+	color: var(--admin-text-muted, #64748b);
+	cursor: pointer;
+	padding: 8px;
+	border-radius: 10px;
+	transition: all 0.2s;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.admin-layout .btn-icon-sm:hover {
+	background: color-mix(in srgb, var(--accent-primary) 10%, var(--admin-icon-bg));
+	color: var(--admin-accent);
+	border-color: color-mix(in srgb, var(--accent-primary) 28%, var(--admin-border));
+}
+
+.admin-layout .btn-trash-sm:hover {
+	background: rgba(220, 38, 38, 0.08);
+	color: var(--admin-danger, #dc2626);
+	border-color: rgba(220, 38, 38, 0.3);
+}
+
+/* Vista lista (una columna, fila horizontal) */
+.admin-layout .inventory-grid.list-mode {
+	grid-template-columns: 1fr;
+}
+
+.admin-layout .inventory-card.list-view {
+	flex-direction: row;
+	align-items: stretch;
+	max-width: 100%;
+}
+
+.admin-layout .inventory-card.list-view .inv-img-wrapper {
+	width: 140px;
+	min-width: 140px;
+	max-width: 140px;
+	aspect-ratio: 1;
+	height: auto;
+	align-self: stretch;
+}
+
+@media (max-width: 520px) {
+	.admin-layout .inventory-card.list-view {
+		flex-direction: column;
+	}
+
+	.admin-layout .inventory-card.list-view .inv-img-wrapper {
+		width: 100%;
+		max-width: none;
+		min-width: 0;
+		aspect-ratio: 16 / 9;
+	}
+}

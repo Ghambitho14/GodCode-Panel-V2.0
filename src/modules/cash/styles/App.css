@@ -1,0 +1,53 @@
+.tenant-shell-root {
+  position: relative;
+  width: 100%;
+  max-width: 100vw;
+  min-height: 100dvh;
+  background: var(--surface-page, #fbfbfd);
+  touch-action: pan-x pan-y;
+  overflow-x: hidden;
+}
+
+#app-content-layer {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Fondo muy sutil (sin patrón pesado) — misma sensación “quiet” que portal cuenta */
+.tenant-shell-bg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-image: none;
+  background: radial-gradient(
+    120% 80% at 50% -10%,
+    color-mix(in srgb, var(--accent-primary, #e63946) 6%, transparent),
+    transparent 55%
+  );
+  opacity: 0.45;
+  filter: none;
+  transition: transform 0.1s ease-out, opacity 0.2s ease-out;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.tenant-shell-bg-layer.is-hidden {
+  opacity: 0;
+}
+
+.tenant-content-layer {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+.tenant-ui-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.tenant-portal-modal {
+  pointer-events: auto;
+}

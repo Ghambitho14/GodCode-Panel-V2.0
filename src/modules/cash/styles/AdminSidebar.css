@@ -1,0 +1,450 @@
+/* =========================================
+   ADMIN SIDEBAR — estilo dashboard ancho tipo Jobie / plantilla clara
+   Desktop: barra fija con etiquetas, iconos en “tiles” redondeados
+   Móvil: barra inferior (sin cambios de comportamiento)
+   ========================================= */
+
+.admin-layout .admin-sidebar {
+	width: var(--admin-sidebar-width, 268px);
+	height: 100vh;
+	height: 100dvh;
+	position: fixed;
+	top: 0;
+	left: 0;
+	z-index: 100;
+
+	background: var(--admin-card-bg, #fff);
+	border-right: 1px solid var(--admin-border, #e8ecf1);
+	box-shadow: 1px 0 0 var(--admin-border, #e5e5ea), 4px 0 24px rgba(15, 23, 42, 0.04);
+
+	display: flex;
+	flex-direction: column;
+	padding: calc(18px + env(safe-area-inset-top)) 14px calc(18px + env(safe-area-inset-bottom));
+	overflow-x: hidden;
+	overflow-y: auto;
+}
+
+/* Cabecera: fila logo + marca (como cabeceras tipo Jobie) */
+.admin-layout .sidebar-top {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 22px;
+	padding-bottom: 18px;
+	border-bottom: 1px solid var(--admin-border, #e8ecf1);
+	min-width: 0;
+}
+
+.admin-layout .logo-circle {
+	width: 48px;
+	height: 48px;
+	background: var(--admin-icon-bg, #f0f2f6);
+	border-radius: 14px;
+	padding: 8px;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+	border: 1px solid var(--admin-border, #e8ecf1);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.admin-layout .logo-circle img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+
+.admin-layout .brand-info {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 3px;
+	min-width: 0;
+	flex: 1;
+	opacity: 1;
+	max-width: none;
+	overflow: visible;
+}
+
+.admin-layout .brand-title {
+	font-size: 0.9375rem;
+	font-weight: 800;
+	letter-spacing: -0.02em;
+	color: var(--admin-text, #1a1d21);
+	text-align: left;
+	line-height: 1.25;
+	margin: 0;
+}
+
+.admin-layout .user-email {
+	font-size: 0.72rem;
+	font-weight: 500;
+	color: var(--admin-text-muted, #6b7280);
+	text-align: left;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	width: 100%;
+	margin-top: 0;
+	display: block;
+}
+
+.admin-layout .branch-name-badge {
+	font-size: 0.65rem;
+	font-weight: 700;
+	background: color-mix(in srgb, var(--accent-primary) 12%, var(--admin-icon-bg));
+	color: var(--accent-primary);
+	padding: 3px 8px;
+	border-radius: 8px;
+	margin-top: 2px;
+	display: inline-block;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Contenedor redondo para iconos Lucide (similar a widgets del demo Jobie) */
+.admin-layout .nav-icon-slot {
+	width: 40px;
+	height: 40px;
+	border-radius: 12px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	background: var(--admin-icon-bg, #f0f2f6);
+	color: var(--admin-text-muted, #6b7280);
+	border: 1px solid transparent;
+	transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-layout .nav-icon-slot svg {
+	stroke-width: 1.65;
+}
+
+.admin-layout .nav-sub-menu .nav-icon-slot {
+	width: 34px;
+	height: 34px;
+	border-radius: 10px;
+}
+
+.admin-layout .nav-sub-menu .nav-icon-slot svg {
+	stroke-width: 1.6;
+}
+
+.admin-layout .nav-item:hover .nav-icon-slot {
+	background: color-mix(in srgb, var(--accent-primary) 8%, var(--admin-icon-bg));
+	color: var(--admin-text, #1a1d21);
+	border-color: color-mix(in srgb, var(--accent-primary) 15%, var(--admin-border));
+}
+
+.admin-layout .nav-item.active .nav-icon-slot {
+	background: color-mix(in srgb, var(--accent-primary) 18%, #fff);
+	color: var(--accent-primary);
+	border-color: color-mix(in srgb, var(--accent-primary) 28%, var(--admin-border));
+	box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-primary) 15%, transparent);
+}
+
+.admin-layout .nav-group-header.active-group .nav-icon-slot {
+	color: var(--accent-primary);
+	background: color-mix(in srgb, var(--accent-primary) 12%, var(--admin-icon-bg));
+	border-color: color-mix(in srgb, var(--accent-primary) 20%, var(--admin-border));
+}
+
+/* Menú */
+.admin-layout .sidebar-menu {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	flex: 1;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding-right: 2px;
+}
+
+.admin-layout .nav-item {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 12px;
+	padding: 10px 12px;
+	border-radius: 14px;
+	background: transparent;
+	border: none;
+	color: var(--admin-text-muted, #6b7280);
+	font-weight: 500;
+	font-size: 0.9rem;
+	line-height: 1.25;
+	cursor: pointer;
+	transition: background 0.18s ease, color 0.18s ease;
+	text-align: left;
+	width: 100%;
+	position: relative;
+	flex-shrink: 0;
+	font-family: inherit;
+	min-height: 44px;
+	box-sizing: border-box;
+}
+
+.admin-layout .nav-item:hover {
+	background: var(--admin-icon-bg, #f0f2f6);
+	color: var(--admin-text, #1a1d21);
+}
+
+.admin-layout .nav-item.active {
+	background: color-mix(in srgb, var(--accent-primary) 11%, var(--admin-card-bg));
+	color: var(--accent-primary);
+	font-weight: 700;
+}
+
+/* Etiquetas siempre visibles (barra ancha) */
+.admin-layout .nav-text,
+.admin-layout .nav-chevron {
+	opacity: 1;
+	max-width: none;
+	overflow: visible;
+	transition: none;
+}
+
+.admin-layout .nav-text {
+	flex: 1;
+	min-width: 0;
+}
+
+.admin-layout .nav-chevron {
+	color: var(--admin-text-muted);
+	flex-shrink: 0;
+	transition: transform 0.25s ease;
+}
+
+.admin-layout .nav-chevron.expanded {
+	transform: rotate(180deg);
+}
+
+/* Badge pedidos */
+.admin-layout .badge-count {
+	background: var(--accent-primary);
+	color: #fff;
+	font-size: 0.65rem;
+	font-weight: 800;
+	padding: 2px 7px;
+	border-radius: 999px;
+	box-shadow: 0 2px 8px var(--accent-shadow, rgba(15, 23, 42, 0.15));
+	margin-left: auto;
+	flex-shrink: 0;
+}
+
+/* Grupos */
+.admin-layout .nav-group-wrapper {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.admin-layout .nav-group-header {
+	justify-content: space-between;
+	padding-right: 8px;
+}
+
+.admin-layout .nav-group-header .nav-text {
+	font-size: 0.72rem;
+	font-weight: 800;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--admin-text-muted, #6b7280);
+	flex: 0 1 auto;
+}
+
+.admin-layout .nav-group-header.active-group .nav-text {
+	color: var(--admin-text, #1a1d21);
+}
+
+.admin-layout .nav-item-inner {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex: 1;
+	min-width: 0;
+}
+
+.admin-layout .nav-sub-menu {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding-left: 8px;
+	margin: 4px 0 10px;
+	overflow: hidden;
+	max-height: 0;
+	opacity: 0;
+	transition: max-height 0.35s ease, opacity 0.25s ease, margin 0.25s ease;
+	border-left: 2px solid var(--admin-border, #e8ecf1);
+}
+
+.admin-layout .nav-sub-menu.expanded {
+	max-height: 480px;
+	opacity: 1;
+}
+
+.admin-layout .nav-sub-menu .nav-item {
+	font-size: 0.875rem;
+	font-weight: 500;
+	padding: 8px 10px;
+	border-radius: 12px;
+	align-items: center;
+	min-height: 44px;
+	box-sizing: border-box;
+}
+
+.admin-layout .nav-sub-menu .nav-item.active {
+	font-weight: 700;
+}
+
+/* Tienda / salir */
+.admin-layout .nav-item.logout {
+	margin-top: 12px;
+	color: var(--admin-danger, #dc2626);
+}
+
+.admin-layout .nav-item.logout .nav-icon-slot {
+	background: rgba(220, 38, 38, 0.08);
+	color: var(--admin-danger, #dc2626);
+}
+
+.admin-layout .nav-item.logout:hover {
+	background: rgba(220, 38, 38, 0.08);
+	color: #b91c1c;
+}
+
+.admin-layout .admin-sidebar-hint {
+	margin-top: 12px;
+	padding: 0 4px;
+	font-size: 0.72rem;
+	font-weight: 500;
+	color: var(--admin-text-muted, #6b7280);
+	line-height: 1.45;
+}
+
+/* =========================================
+   MÓVIL — barra inferior
+   ========================================= */
+@media (max-width: 1024px) {
+	.admin-layout .admin-sidebar,
+	.admin-layout .admin-sidebar:hover {
+		width: 100% !important;
+		height: auto !important;
+		position: fixed !important;
+		bottom: 0;
+		top: auto !important;
+		left: 0;
+
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+
+		padding: 6px 8px;
+		padding-left: max(8px, env(safe-area-inset-left));
+		padding-right: max(8px, env(safe-area-inset-right));
+		padding-bottom: max(6px, env(safe-area-inset-bottom));
+
+		background: rgba(255, 255, 255, 0.97) !important;
+		-webkit-backdrop-filter: blur(16px) !important;
+		backdrop-filter: blur(16px) !important;
+		border-right: none;
+		border-top: 1px solid var(--admin-border, #e8ecf1);
+		box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.1);
+		z-index: 1000;
+	}
+
+	.admin-layout .sidebar-top,
+	.admin-layout .nav-text,
+	.admin-layout .nav-chevron,
+	.admin-layout .nav-group-wrapper,
+	.admin-layout .nav-sub-menu {
+		display: none !important;
+	}
+
+	.admin-layout .sidebar-menu {
+		flex-direction: row;
+		justify-content: flex-start;
+		align-items: stretch;
+		gap: 2px;
+		width: 100%;
+		overflow-x: auto;
+		overflow-y: hidden;
+		-ms-overflow-style: none;
+		padding-right: 0;
+	}
+
+	.admin-layout .sidebar-menu::-webkit-scrollbar {
+		display: none;
+	}
+
+	/* Misma “tile” para cada acción: evita anchos distintos según el texto */
+	.admin-layout .sidebar-menu > .nav-item,
+	.admin-layout .admin-sidebar:hover .sidebar-menu > .nav-item {
+		width: 72px;
+		min-width: 72px;
+		max-width: 72px;
+		min-height: 58px;
+		box-sizing: border-box;
+		padding: 6px 4px;
+		border-radius: 12px;
+		justify-content: center !important;
+		align-items: center;
+		flex-direction: column;
+		flex-shrink: 0;
+		gap: 4px !important;
+		font-size: 0.65rem;
+	}
+
+	.admin-layout .nav-icon-slot {
+		width: 36px;
+		height: 36px;
+		border-radius: 11px;
+		flex-shrink: 0;
+	}
+
+	.admin-layout .nav-icon-slot svg {
+		stroke-width: 1.7;
+	}
+
+	.admin-layout .nav-label-mobile {
+		display: -webkit-box !important;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		font-size: 0.58rem;
+		font-weight: 600;
+		color: inherit;
+		line-height: 1.15;
+		opacity: 0.85;
+		width: 100%;
+		max-width: 100%;
+		overflow: hidden;
+		text-align: center;
+		word-break: break-word;
+		hyphens: auto;
+	}
+
+	.admin-layout .nav-item.active .nav-label-mobile {
+		opacity: 1;
+		font-weight: 700;
+	}
+
+	.admin-layout .badge-count {
+		position: absolute !important;
+		top: 2px;
+		right: 2px;
+		padding: 1px 5px;
+		font-size: 0.58rem;
+		margin-left: 0;
+	}
+
+	.admin-layout .logout {
+		margin-left: auto;
+		flex-shrink: 0;
+		margin-top: 0;
+	}
+}

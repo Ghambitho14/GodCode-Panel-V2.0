@@ -1,0 +1,813 @@
+/* =========================================
+   ADMIN REPORTS - REDESIGNED
+   ========================================= */
+
+.admin-layout .rpt-container {
+    padding: clamp(1rem, 5vw, 2.5rem);
+    max-width: 1440px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(1.25rem, 3vw, 2rem);
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* --- HEADER --- */
+.admin-layout .rpt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    border-bottom: 1px solid var(--admin-border, #e2e8f0);
+    padding-bottom: 1.5rem;
+}
+
+.admin-layout .rpt-header--actions-only {
+    justify-content: flex-end;
+    padding-bottom: 0.4rem;
+    align-items: center;
+}
+
+/* Menos aire cuando solo hay toolbar (periodo); el título va en AdminTopBar */
+.admin-layout .rpt-container--compact-toolbar {
+    padding-top: clamp(0.35rem, 1.5vw, 0.75rem);
+    gap: clamp(0.65rem, 1.5vw, 1.1rem);
+}
+
+.admin-layout .rpt-title {
+    font-size: clamp(1.4rem, 4vw, 2rem);
+    font-weight: 900;
+    color: var(--admin-text, #0f172a);
+    margin: 0;
+    letter-spacing: -0.03em;
+}
+
+.admin-layout .rpt-subtitle {
+    margin: 4px 0 0;
+    font-size: 0.85rem;
+    color: var(--admin-text-muted, #64748b);
+}
+
+/* Mismo patrón que selector de sucursal (AdminMenuSelect + AdminLayout.css) */
+.admin-layout .rpt-period-menu-select.admin-branch-select {
+    max-width: min(100%, 280px);
+}
+
+.admin-layout .rpt-month-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--admin-text-muted, #5a6169);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.admin-layout .rpt-month-input {
+    background: transparent;
+    border: none;
+    color: var(--admin-text, #0f172a);
+    font-size: 0.85rem;
+    font-weight: 700;
+    font-family: inherit;
+    outline: none;
+    min-width: 150px;
+}
+
+.admin-layout .rpt-month-input::-webkit-calendar-picker-indicator {
+    filter: none;
+    opacity: 0.55;
+    cursor: pointer;
+}
+
+.admin-layout .rpt-month-clear {
+    background: var(--admin-icon-bg, #f0f2f6);
+    border: 1px solid var(--admin-border, #e8ecf1);
+    color: var(--admin-text-muted, #6b7280);
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0;
+    transition: all 0.2s ease;
+}
+
+.admin-layout .rpt-month-clear:hover {
+    background: var(--admin-card-bg, #fff);
+    border-color: color-mix(in srgb, var(--accent-primary) 30%, var(--admin-border));
+    color: var(--admin-text, #1a1d21);
+}
+
+/* --- KPI ROW --- */
+.admin-layout .rpt-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.admin-layout .rpt-kpi {
+    background: var(--admin-card-bg, #fff);
+    border: 1px solid var(--admin-border, #e8ecf1);
+    border-radius: 14px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    transition: all 0.25s ease;
+    box-shadow: var(--admin-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.06));
+}
+
+.admin-layout .rpt-kpi:hover {
+    border-color: color-mix(in srgb, var(--accent-primary) 22%, var(--admin-border));
+    background: var(--admin-card-bg, #fff);
+    transform: translateY(-2px);
+    box-shadow: var(--admin-shadow-md, 0 12px 40px -16px rgba(15, 23, 42, 0.14));
+}
+
+.admin-layout .rpt-kpi-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.admin-layout .rpt-kpi-icon.sales { background: rgba(230,57,70,0.12); color: #e63946; }
+.admin-layout .rpt-kpi-icon.orders { background: rgba(59,130,246,0.12); color: #3b82f6; }
+.admin-layout .rpt-kpi-icon.ticket { background: rgba(34,197,94,0.12); color: #22c55e; }
+.admin-layout .rpt-kpi-icon.clients { background: rgba(168,85,247,0.12); color: #a855f7; }
+.admin-layout .rpt-kpi-icon.delivery { background: rgba(245, 158, 11, 0.14); color: #d97706; }
+.admin-layout .rpt-kpi-icon.expenses { background: rgba(239, 68, 68, 0.12); color: #ef4444; }
+.admin-layout .rpt-kpi-icon.balance { background: rgba(99, 102, 241, 0.12); color: #4f46e5; }
+
+.admin-layout .rpt-kpi-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.admin-layout .rpt-kpi-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--admin-text-muted, #5a6169);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.admin-layout .rpt-kpi-value {
+    font-size: 1.2rem;
+    font-weight: 900;
+    color: var(--admin-text, #1a1d21);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+}
+
+.admin-layout .rpt-kpi-meta {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--admin-text-muted, #5a6169);
+    margin-top: 4px;
+    line-height: 1.25;
+}
+
+.admin-layout .rpt-trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 20px;
+    flex-shrink: 0;
+}
+
+.admin-layout .rpt-trend.positive { color: #22c55e; background: rgba(34,197,94,0.1); }
+.admin-layout .rpt-trend.negative { color: #ef4444; background: rgba(239,68,68,0.1); }
+.admin-layout .rpt-trend.neutral { color: var(--admin-text-muted, #5a6169); background: rgba(148,163,184,0.1); }
+
+/* --- MAIN GRID (Chart + Sidebar) --- */
+.admin-layout .rpt-main-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 16px;
+}
+
+/* Chart Card */
+.admin-layout .rpt-chart-card {
+    background: var(--admin-card-bg, #fff);
+    border: 1px solid var(--admin-border, #e8ecf1);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    min-height: 380px;
+    min-width: 0;
+    overflow: hidden;
+    box-shadow: var(--admin-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.06));
+}
+
+.admin-layout .rpt-chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.admin-layout .rpt-chart-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.admin-layout .rpt-chart-kind {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px;
+    border-radius: 10px;
+    border: 1px solid var(--admin-border, #e8ecf1);
+    background: var(--admin-page-bg, #f4f6f9);
+}
+
+.admin-layout .rpt-chart-kind-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--admin-text-muted, #5a6169);
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.admin-layout .rpt-chart-kind-btn:hover:not(.active) {
+    color: var(--admin-text, #1a1d21);
+    background: color-mix(in srgb, var(--admin-card-bg, #fff) 70%, transparent);
+}
+
+.admin-layout .rpt-chart-kind-btn.active {
+    background: var(--admin-card-bg, #fff);
+    color: #e63946;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.admin-layout .rpt-chart-kind-label {
+    white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+    .admin-layout .rpt-chart-kind-label {
+        display: none;
+    }
+    .admin-layout .rpt-chart-kind-btn {
+        padding: 8px 10px;
+    }
+}
+
+.admin-layout .rpt-chart-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--admin-text, #1a1d21);
+}
+
+.admin-layout .rpt-chart-tabs {
+    display: flex;
+    background: var(--admin-icon-bg, #f0f2f6);
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border, #e8ecf1);
+}
+
+.admin-layout .rpt-tab {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--admin-text-muted, #5a6169);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.admin-layout .rpt-tab.active {
+    background: rgba(230,57,70,0.15);
+    color: #e63946;
+}
+
+.admin-layout .rpt-tab:hover:not(.active) {
+    color: var(--admin-text, #1a1d21);
+}
+
+.admin-layout .rpt-chart-wrapper {
+    flex: 1;
+    position: relative;
+    min-height: 280px;
+    width: 100%;
+    overflow: hidden;
+}
+
+.admin-layout .rpt-chart-wrapper canvas {
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+/* Sidebar */
+.admin-layout .rpt-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.admin-layout .rpt-side-card {
+    background: var(--admin-card-bg, #fff);
+    border: 1px solid var(--admin-border, #e8ecf1);
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: var(--admin-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.06));
+}
+
+.admin-layout .rpt-side-card h4 {
+    margin: 0 0 14px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--admin-text, #1a1d21);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Payment Breakdown */
+.admin-layout .rpt-payment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.admin-layout .rpt-payment-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.admin-layout .rpt-payment-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    color: var(--admin-text-muted, #6b7280);
+}
+
+.admin-layout .rpt-payment-icon {
+    display: flex;
+    align-items: center;
+}
+
+.admin-layout .rpt-payment-bar-wrap {
+    height: 6px;
+    background: var(--admin-icon-bg, #f0f2f6);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.admin-layout .rpt-payment-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+    min-width: 2px;
+}
+
+.admin-layout .rpt-payment-values {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+}
+
+.admin-layout .rpt-payment-values strong {
+    color: var(--admin-text, #1a1d21);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-layout .rpt-payment-values span {
+    color: var(--admin-text-muted, #5a6169);
+}
+
+/* Peak Hour */
+.admin-layout .rpt-peak-value {
+    font-size: 1.3rem;
+    font-weight: 900;
+    color: var(--admin-text, #1a1d21);
+    margin-bottom: 4px;
+}
+
+.admin-layout .rpt-peak-sub {
+    font-size: 0.78rem;
+    color: var(--admin-text-muted, #5a6169);
+}
+
+/* Quick Stats */
+.admin-layout .rpt-quick-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.admin-layout .rpt-quick-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.admin-layout .rpt-quick-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--admin-text-muted, #5a6169);
+}
+
+.admin-layout .rpt-quick-value {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--admin-text, #1a1d21);
+    font-variant-numeric: tabular-nums;
+}
+
+/* --- TOP PRODUCTS --- */
+.admin-layout .rpt-products-card {
+    background: var(--admin-card-bg, #fff);
+    border: 1px solid var(--admin-border, #e8ecf1);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: var(--admin-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.06));
+}
+
+.admin-layout .rpt-products-card h3 {
+    margin: 0 0 16px;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--admin-text, #1a1d21);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.admin-layout .rpt-products-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.admin-layout .rpt-product-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--admin-border, #e8ecf1);
+}
+
+.admin-layout .rpt-product-row:last-child {
+    border-bottom: none;
+}
+
+.admin-layout .rpt-product-rank {
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: #e63946;
+    min-width: 28px;
+}
+
+.admin-layout .rpt-product-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.admin-layout .rpt-product-name {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--admin-text, #1a1d21);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admin-layout .rpt-product-bar-wrap {
+    height: 5px;
+    background: var(--admin-icon-bg, #f0f2f6);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.admin-layout .rpt-product-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #e63946, #ff6b6b);
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.admin-layout .rpt-product-stats {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.admin-layout .rpt-product-qty {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--admin-text-muted, #5a6169);
+}
+
+.admin-layout .rpt-product-rev {
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: var(--admin-text, #1a1d21);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Empty */
+.admin-layout .rpt-empty {
+    text-align: center;
+    padding: 30px;
+    color: var(--admin-text-muted, #5a6169);
+    font-size: 0.9rem;
+}
+
+/* =========================================
+   RESPONSIVE
+   ========================================= */
+
+/* Tablet */
+@media (max-width: 1024px) {
+    .admin-layout .rpt-main-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-layout .rpt-sidebar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+    }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .admin-layout .rpt-container {
+        padding: 14px;
+        gap: 14px;
+    }
+
+    /* Header */
+    .admin-layout .rpt-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding-bottom: 14px;
+    }
+
+    .admin-layout .rpt-header--actions-only {
+        align-items: stretch;
+        padding-bottom: 0.35rem;
+    }
+
+    .admin-layout .rpt-header-actions {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: flex-start;
+        width: 100%;
+        gap: 10px;
+    }
+
+    .admin-layout .rpt-period-menu-select.admin-branch-select {
+        flex: 0 0 auto;
+        align-self: flex-start;
+        width: 100%;
+        max-width: 100%;
+        min-height: 0;
+    }
+
+    .admin-layout .rpt-period-menu-select .admin-branch-select__trigger {
+        width: 100%;
+        min-height: 44px;
+        height: auto;
+        max-height: none;
+        box-sizing: border-box;
+    }
+
+    .admin-layout .rpt-month-input {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .admin-layout .rpt-subtitle {
+        font-size: 0.78rem;
+    }
+
+    /* KPI Row: 2 columns, compact */
+    .admin-layout .rpt-kpi-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .admin-layout .rpt-kpi {
+        padding: 12px;
+        border-radius: 12px;
+        gap: 0;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .admin-layout .rpt-kpi-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        margin-bottom: 8px;
+    }
+
+    .admin-layout .rpt-kpi-icon svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .admin-layout .rpt-kpi-label {
+        font-size: 0.65rem;
+    }
+
+    .admin-layout .rpt-kpi-value {
+        font-size: 1.1rem;
+        word-break: break-all;
+    }
+
+    .admin-layout .rpt-trend {
+        font-size: 0.68rem;
+        padding: 2px 6px;
+        margin-top: 6px;
+    }
+
+    /* Chart */
+    .admin-layout .rpt-chart-card {
+        padding: 12px;
+        min-height: 260px;
+        border-radius: 12px;
+    }
+
+    .admin-layout .rpt-chart-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .admin-layout .rpt-chart-header h3 {
+        font-size: 0.9rem;
+    }
+
+    .admin-layout .rpt-chart-tabs {
+        width: 100%;
+    }
+
+    .admin-layout .rpt-tab {
+        flex: 1;
+        text-align: center;
+        padding: 6px 8px;
+        font-size: 0.72rem;
+    }
+
+    .admin-layout .rpt-chart-wrapper {
+        min-height: 200px;
+    }
+
+    /* Sidebar */
+    .admin-layout .rpt-sidebar {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-layout .rpt-side-card {
+        padding: 14px;
+        border-radius: 12px;
+    }
+
+    .admin-layout .rpt-side-card h4 {
+        font-size: 0.78rem;
+        margin-bottom: 10px;
+    }
+
+    .admin-layout .rpt-payment-info {
+        font-size: 0.78rem;
+    }
+
+    .admin-layout .rpt-payment-values {
+        font-size: 0.72rem;
+    }
+
+    .admin-layout .rpt-peak-value {
+        font-size: 1.1rem;
+    }
+
+    .admin-layout .rpt-peak-sub {
+        font-size: 0.72rem;
+    }
+
+    .admin-layout .rpt-quick-label {
+        font-size: 0.78rem;
+    }
+
+    .admin-layout .rpt-quick-value {
+        font-size: 0.9rem;
+    }
+
+    /* Products */
+    .admin-layout .rpt-products-card {
+        padding: 14px;
+        border-radius: 12px;
+    }
+
+    .admin-layout .rpt-products-card h3 {
+        font-size: 0.9rem;
+        margin-bottom: 12px;
+    }
+
+    .admin-layout .rpt-product-row {
+        gap: 10px;
+        padding: 8px 0;
+    }
+
+    .admin-layout .rpt-product-rank {
+        font-size: 0.75rem;
+        min-width: 22px;
+    }
+
+    .admin-layout .rpt-product-name {
+        font-size: 0.8rem;
+    }
+
+    .admin-layout .rpt-product-qty {
+        font-size: 0.7rem;
+    }
+
+    .admin-layout .rpt-product-rev {
+        font-size: 0.78rem;
+    }
+
+    .admin-layout .rpt-product-stats {
+        min-width: 60px;
+    }
+}
+
+/* Small mobile */
+@media (max-width: 400px) {
+    .admin-layout .rpt-container {
+        padding: 10px;
+        gap: 10px;
+    }
+
+    .admin-layout .rpt-title {
+        font-size: 1.2rem;
+    }
+
+    .admin-layout .rpt-kpi-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+
+    .admin-layout .rpt-kpi {
+        padding: 10px;
+    }
+
+    .admin-layout .rpt-kpi-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+    }
+
+    .admin-layout .rpt-kpi-value {
+        font-size: 0.95rem;
+    }
+
+    .admin-layout .rpt-chart-wrapper {
+        min-height: 180px;
+    }
+}

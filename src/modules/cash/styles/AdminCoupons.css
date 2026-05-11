@@ -1,0 +1,337 @@
+/*
+ * Cupones — UI alineada con rejilla 12 columnas compartida.
+ * Alcance: .admin-layout O main.admin-content (por si la cascada fallaba antes).
+ */
+:is(.admin-layout, main.admin-content) .admin-coupons {
+	display: flex;
+	flex-direction: column;
+	gap: 1.35rem;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__toolbar.admin-toolbar {
+	flex-direction: column;
+	align-items: stretch;
+	flex-wrap: nowrap;
+	gap: 12px;
+	margin-bottom: 0;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__toolbar-head {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: center;
+	gap: 10px 12px;
+	min-width: 0;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__toolbar-title {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	min-width: 0;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__toolbar-title h2 {
+	margin: 0;
+	font-size: 1.125rem;
+	font-weight: 900;
+	letter-spacing: -0.03em;
+	color: var(--admin-text, #12151a);
+	line-height: 1.2;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__toolbar-title svg {
+	flex-shrink: 0;
+	color: var(--admin-accent, var(--accent-primary));
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__toolbar-hint {
+	margin: 0;
+	max-width: 52rem;
+	line-height: 1.45;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__refresh-btn {
+	flex-shrink: 0;
+	min-height: 38px;
+	padding: 8px 14px;
+	font-size: 0.875rem;
+}
+
+/* Tarjeta formulario */
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__form-card {
+	padding: 1.35rem 1.35rem 1.4rem;
+	border-radius: 14px;
+	border: 1px solid color-mix(in srgb, var(--admin-border, #dde3ea) 92%, var(--admin-text, #12151a));
+	box-shadow: var(--admin-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.06));
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__form-card-head {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px 12px;
+	margin-bottom: 0.25rem;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__form-card-title {
+	font-size: 1rem;
+	font-weight: 900;
+	letter-spacing: -0.02em;
+	color: var(--admin-text, #12151a);
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__form-subtitle {
+	font-size: 0.8125rem;
+	color: var(--admin-text-muted, #64748b);
+	margin: 0 0 1.15rem;
+	line-height: 1.5;
+	max-width: 40rem;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons label.admin-coupons__label.p {
+	display: block;
+	font-size: 0.75rem;
+	font-weight: 900;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--admin-text-muted, #5a6169);
+	-webkit-text-fill-color: var(--admin-text-muted, #5a6169);
+	margin-bottom: 0.45rem;
+	line-height: 1.35;
+}
+
+/*
+ * Una sola rejilla 12 columnas: todas las filas comparten las mismas líneas verticales.
+ */
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__matrix {
+	display: grid;
+	grid-template-columns: repeat(12, minmax(0, 1fr));
+	column-gap: 1.125rem;
+	row-gap: 0.875rem;
+	align-items: start;
+	margin-bottom: 1rem;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__grid-eyebrow {
+	grid-column: 1 / -1;
+	margin: 0;
+	padding: 0 0 0.45rem;
+	font-size: 0.78125rem;
+	font-weight: 900;
+	letter-spacing: 0.065em;
+	text-transform: uppercase;
+	color: rgba(0, 0, 0, 1);
+	border-bottom: 1px solid var(--admin-border, #dde3ea);
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons p.titulo-cupon-section {
+	color: #000 !important;
+	-webkit-text-fill-color: #000 !important;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__grid-eyebrow:first-child {
+	padding-top: 0;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__grid-eyebrow:not(:first-child) {
+	margin-top: 0.35rem;
+	padding-top: 0.5rem;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__form-field {
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-start;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__form-field .form-input,
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__form-field select.form-input {
+	width: 100%;
+	box-sizing: border-box;
+	min-height: 44px;
+	padding: 0.55rem 0.75rem;
+	font-size: 0.9rem;
+	border-radius: 10px;
+	line-height: 1.25;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__cell-span-3 {
+	grid-column: span 3;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__cell-span-4 {
+	grid-column: span 4;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__cell-span-6 {
+	grid-column: span 6;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__cell-full {
+	grid-column: 1 / -1;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__select-client {
+	max-width: none;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__field-hint {
+	display: block;
+	font-size: 0.6875rem;
+	color: var(--admin-text-muted, #64748b);
+	margin-top: 5px;
+	line-height: 1.35;
+	min-height: 1.2em;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__checkbox-row {
+	grid-column: 1 / -1;
+	display: flex;
+	align-items: center;
+	gap: 0.55rem;
+	font-size: 0.9rem;
+	font-weight: 700;
+	color: var(--admin-text, #12151a);
+	margin: 0.35rem 0 0;
+	padding: 0.65rem 0 0;
+	border-top: 1px solid var(--admin-border, #dde3ea);
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__form-footer {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 0.75rem;
+	padding-top: 0.35rem;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__submit-btn {
+	min-width: min(100%, 220px);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.35rem;
+}
+
+/* Tabla */
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__panel-empty {
+	padding: 1rem;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__loading {
+	padding: 2rem;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-staff-table {
+	min-width: 720px;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__scope-cell {
+	max-width: 220px;
+	font-size: 0.8rem;
+	color: var(--admin-text-muted, #475569);
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__dates-cell {
+	font-size: 0.72rem;
+	color: var(--admin-text-muted, #64748b);
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__actions-cell {
+	white-space: nowrap;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__actions-cell .btn-icon-toggle + .btn-icon-toggle {
+	margin-left: 0.25rem;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__status {
+	font-weight: 700;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__status--active {
+	color: #15803d;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__status--inactive {
+	color: #b91c1c;
+}
+
+:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__empty-company {
+	padding: 1rem;
+	margin: 0;
+}
+
+/* ≤960px: rejilla 6 columnas (mantiene proporciones ½ y ⅓) */
+@media (max-width: 960px) {
+	:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__matrix {
+		grid-template-columns: repeat(6, minmax(0, 1fr));
+		column-gap: 1rem;
+	}
+
+	:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__cell-span-3 {
+		grid-column: span 3;
+	}
+
+	:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__cell-span-4 {
+		grid-column: span 2;
+	}
+
+	:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__cell-span-6 {
+		grid-column: span 3;
+	}
+}
+
+@media (max-width: 640px) {
+	:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__matrix {
+		grid-template-columns: 1fr;
+		row-gap: 0.75rem;
+	}
+
+	:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__cell-span-3,
+	:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__cell-span-4,
+	:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__cell-span-6 {
+		grid-column: 1 / -1;
+	}
+
+	:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__submit-btn {
+		width: 100%;
+		min-width: 0;
+	}
+
+	:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__form-footer {
+		justify-content: stretch;
+	}
+
+	:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__toolbar-head {
+		align-items: flex-start;
+	}
+
+	:is(.admin-layout, main.admin-content) .admin-coupons .admin-coupons__refresh-btn {
+		width: 100%;
+		justify-content: center;
+	}
+}
+
+@media (max-width: 768px) {
+	:is(.admin-layout, main.admin-content) .admin-coupons .admin-staff-table th,
+	:is(.admin-layout, main.admin-content) .admin-coupons .admin-staff-table td {
+		padding: 8px 10px;
+		font-size: 0.8125rem;
+	}
+
+	:is(.admin-layout, main.admin-content) .admin-coupons .admin-staff-table thead th {
+		font-size: 0.78rem;
+	}
+
+	:is(.admin-layout, main.admin-content) .admin-coupons .staff-table-wrapper.admin-staff-table-wrap {
+		margin-left: -8px;
+		margin-right: -8px;
+		padding-left: 8px;
+		padding-right: 8px;
+	}
+}
