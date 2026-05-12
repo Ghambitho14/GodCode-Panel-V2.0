@@ -358,23 +358,57 @@ export const useCashSystem = (showNotify, branchId) => {
                     amount,
                     type,
                     payment_method
-                )
+                ),
+                orders(count)
             `)
             .eq('status', 'closed')
             .eq('branch_id', branchId) // FILTRO POR SUCURSAL
+            .neq('orders.status', 'cancelled') // Excluir pedidos cancelados/devueltos del conteo del turno
             .order('closed_at', { ascending: false })
             .limit(limit);
         if (error) throw error;
         
-        // Calcular totales de transferencias para cada turno
-        return data.map(shift => {
+        // Calcular totales de transferencias y conteo de pedidos para cada turno
+        const result = data.map(shift => {
             const movements = shift.cash_movements || [];
             const totalOnline = movements
                 .filter(m => m.payment_method === 'online' && m.type === 'sale')
                 .reduce((sum, m) => sum + (Number(m.amount) || 0), 0);
-            
-            return { ...shift, total_online: totalOnline };
+            const ordersCount = Array.isArray(shift.orders)
+                ? Number(shift.orders[0]?.count ?? 0)
+                : 0;
+
+            return { ...shift, total_online: totalOnline, orders_count: ordersCount };
         });
+
+        // #region agent log
+        try {
+            fetch('http://127.0.0.1:7461/ingest/e68a46d1-59e8-49d9-bde5-733f5c55d988', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '502478' },
+                body: JSON.stringify({
+                    sessionId: '502478',
+                    runId: 'post-fix-cancelled-filter',
+                    hypothesisId: 'H1',
+                    location: 'useCashSystem.js:getPastShifts',
+                    message: 'getPastShifts result snapshot (cancelled excluded from count)',
+                    data: {
+                        branchId,
+                        shifts: result.slice(0, 5).map(s => ({
+                            id: s.id,
+                            opened_at: s.opened_at,
+                            closed_at: s.closed_at,
+                            orders_count: s.orders_count,
+                            embed_raw: s.orders,
+                        })),
+                    },
+                    timestamp: Date.now(),
+                }),
+            }).catch(() => {});
+        } catch (e) { void e; }
+        // #endregion
+
+        return result;
     }, [branchId]);
 
     const getShiftMovements = useCallback(async (shiftId) => {

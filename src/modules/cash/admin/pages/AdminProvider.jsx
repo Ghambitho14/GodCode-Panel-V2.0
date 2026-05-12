@@ -735,6 +735,22 @@ export const AdminProvider = ({
 		try {
 			let finalImageUrl = formData.image_url;
 			if (localFile) finalImageUrl = await uploadImage(localFile, 'menu');
+			// `p_price` y `p_discount_price` son NUMERIC en la RPC. Si pasamos un
+			// JS Number entero (ej. 1500), PostgREST lo serializa como integer y
+			// PG no resuelve la firma (busca un overload uuid,...,integer,...).
+			// Forzamos string -> PG hace cast a numeric sin ambiguedad.
+			const priceStr = String(Number(formData.price) || 0);
+			const discountStr = formData.has_discount
+				? String(Number(formData.discount_price) || 0)
+				: null;
+			// Regla multi-sucursal:
+			// - CREATE (sin editingProduct): se aplica a TODAS las branches activas
+			//   de la company con el mismo precio inicial, asi el producto aparece
+			//   listo para vender en cualquier sucursal.
+			// - EDIT: solo se toca la branch seleccionada (override por sucursal),
+			//   para que el cajero pueda subir/bajar el precio en una sin pisar
+			//   las demas.
+			const applyToAllBranches = !editingProduct;
 			const { data: productId, error } = await supabase.rpc('admin_upsert_product_with_branch', {
 				p_product_id: editingProduct?.id || null,
 				p_name: formData.name,
@@ -742,11 +758,12 @@ export const AdminProvider = ({
 				p_image_url: finalImageUrl,
 				p_category_id: formData.category_id || null,
 				p_branch_id: selectedBranch.id,
-				p_price: Number(formData.price) || 0,
+				p_price: priceStr,
 				p_has_discount: formData.has_discount || false,
-				p_discount_price: formData.has_discount ? (Number(formData.discount_price) || 0) : null,
+				p_discount_price: discountStr,
 				p_is_active: editingProduct ? Boolean(editingProduct.is_active) : true,
-				p_is_special: formData.is_special || false
+				p_is_special: formData.is_special || false,
+				p_apply_to_all_branches: applyToAllBranches
 			});
 			if (error) throw error;
 			if (!productId) throw new Error('No se pudo guardar el producto');
@@ -841,6 +858,28 @@ export const AdminProvider = ({
 				if (error) throw error;
 				showNotify(newActive ? 'Activado en todos los locales' : 'Desactivado en todos los locales');
 			} else {
+				// Pre-flight: si activamos localmente un producto que esta apagado a nivel global,
+				// el trigger sync_product_branch_parent_state forzaria is_active=false silenciosamente.
+				// Solucion: promover global a true antes del upsert local.
+				let promotedGlobal = false;
+				if (type === 'product' && newActive) {
+					const { data: parent, error: selErr } = await supabase
+						.from(TABLES.products)
+						.select('is_active')
+						.eq('id', item.id)
+						.maybeSingle();
+					if (selErr) throw selErr;
+					if (parent && parent.is_active === false) {
+						const scopedCompanyId = companyId || selectedBranch?.company_id || item.company_id || null;
+						let promoteQuery = supabase.from(TABLES.products).update({ is_active: true }).eq('id', item.id);
+						if (scopedCompanyId) {
+							promoteQuery = promoteQuery.eq('company_id', scopedCompanyId);
+						}
+						const { error: gErr } = await promoteQuery;
+						if (gErr) throw gErr;
+						promotedGlobal = true;
+					}
+				}
 				const row = {
 					product_id: item.id,
 					branch_id: selectedBranch.id,
@@ -853,8 +892,13 @@ export const AdminProvider = ({
 				}
 				const { error } = await supabase.from(TABLES.product_branch).upsert(row, { onConflict: 'product_id, branch_id' });
 				if (error) throw error;
-				showNotify(newActive ? 'Activado en este local' : 'Desactivado en este local');
+				if (promotedGlobal) {
+					showNotify('Producto reactivado (estaba apagado en todos los locales)');
+				} else {
+					showNotify(newActive ? 'Activado en este local' : 'Desactivado en este local');
+				}
 			}
+			loadData(true);
 		} catch {
 			loadData(true);
 			showNotify('Error al cambiar estado', 'error');

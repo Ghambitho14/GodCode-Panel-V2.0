@@ -120,6 +120,47 @@ const CashShiftDetailModal = ({ isOpen, onClose, shift, getTotals, orders = [] }
 
     const totals = getTotals ? getTotals(movements) : { income: 0, expense: 0, cash: 0, card: 0, online: 0 };
 
+    // Conteo de pedidos del turno (excluye cancelados/devueltos):
+    // 1) Prioriza shift.orders_count del embed PostgREST (que ya filtra status != 'cancelled').
+    // 2) Si no esta disponible (turno actual sin embed), cae al conteo de movements type='sale'
+    //    MENOS los pedidos cancelados detectados en el rango del turno (cancelledOrdersInShift).
+    const shiftOrdersCount = (() => {
+        if (Number.isFinite(Number(shift?.orders_count))) {
+            return Number(shift.orders_count);
+        }
+        if (Array.isArray(shift?.orders) && Number.isFinite(Number(shift.orders[0]?.count))) {
+            return Number(shift.orders[0].count);
+        }
+        const saleMovements = (movements || []).filter(m => m.type === 'sale').length;
+        const cancelled = Array.isArray(cancelledOrdersInShift) ? cancelledOrdersInShift.length : 0;
+        return Math.max(0, saleMovements - cancelled);
+    })();
+
+    // #region agent log
+    try {
+        fetch('http://127.0.0.1:7461/ingest/e68a46d1-59e8-49d9-bde5-733f5c55d988', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '502478' },
+            body: JSON.stringify({
+                sessionId: '502478',
+                runId: 'post-fix-cancelled-filter',
+                hypothesisId: 'H2',
+                location: 'CashShiftDetailModal.jsx:render',
+                message: 'shiftOrdersCount computed for past-shift detail modal',
+                data: {
+                    shift_id: shift?.id,
+                    embed_orders_count: shift?.orders_count,
+                    embed_raw_orders: shift?.orders,
+                    sale_movements: (movements || []).filter(m => m.type === 'sale').length,
+                    cancelled_in_shift: Array.isArray(cancelledOrdersInShift) ? cancelledOrdersInShift.length : 0,
+                    final_count: shiftOrdersCount,
+                },
+                timestamp: Date.now(),
+            }),
+        }).catch(() => {});
+    } catch (e) { void e; }
+    // #endregion
+
     return (
         <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
             <div className="modal-content glass" style={{ maxWidth: 650, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
@@ -128,9 +169,28 @@ const CashShiftDetailModal = ({ isOpen, onClose, shift, getTotals, orders = [] }
                         <History className="text-accent" size={24} />
                         <div>
                             <h3 className="fw-700" style={{ margin: 0 }}>Viendo Turno Pasado</h3>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                {new Date(shift.closed_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}
-                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                    {new Date(shift.closed_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                </span>
+                                <span
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 4,
+                                        fontSize: '0.7rem',
+                                        fontWeight: 600,
+                                        color: 'var(--c-text-secondary, var(--text-secondary))',
+                                        background: 'var(--c-surface-hover, rgba(255,255,255,0.06))',
+                                        border: '1px solid var(--c-border, rgba(255,255,255,0.08))',
+                                        borderRadius: 999,
+                                        padding: '2px 8px',
+                                    }}
+                                    title="Cantidad de pedidos registrados en este turno"
+                                >
+                                    {shiftOrdersCount} {shiftOrdersCount === 1 ? 'pedido' : 'pedidos'}
+                                </span>
+                            </div>
                         </div>
                     </div>
                     <button onClick={onClose} className="btn-close"><X size={24} /></button>

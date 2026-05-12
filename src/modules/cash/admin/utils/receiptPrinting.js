@@ -96,7 +96,11 @@ function formatDateDashFromDate(d) {
  * @returns {string}
  */
 function formatOrderNumberForTicket(order) {
-	const raw = order?.display_id ?? order?.order_number ?? order?.id;
+	const raw =
+		order?.shift_sequence ??
+		order?.display_id ??
+		order?.order_number ??
+		order?.id;
 	if (raw == null || raw === '') return '—';
 	return String(raw);
 }

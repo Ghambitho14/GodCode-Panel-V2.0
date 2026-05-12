@@ -433,6 +433,9 @@ const CashManager = ({ showNotify, selectedBranchId, selectedBranch = null, orde
                                         <span className="cash-history-duration">
                                             <Clock size={12} /> {durationStr}
                                         </span>
+                                        <span className="cash-history-orders">
+                                            {Number(shift.orders_count ?? 0)} {Number(shift.orders_count ?? 0) === 1 ? 'pedido' : 'pedidos'}
+                                        </span>
                                     </div>
 
                                     <div className="cash-history-amounts">

@@ -155,6 +155,9 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
     const [printMenuOpen, setPrintMenuOpen] = useState(false);
     const [showProductImages, setShowProductImages] = useState(false);
     const [isMobileLikeLayout, setIsMobileLikeLayout] = useState(false);
+    // Wizard de 3 pasos solo en movil (<=767px): 1) Productos, 2) Cliente+Tipo, 3) Pago+Confirmar.
+    const [isStepsMode, setIsStepsMode] = useState(false);
+    const [mobileStep, setMobileStep] = useState(1);
     const [cartUpsellCatalogs, setCartUpsellCatalogs] = useState({
         beveragesEnabled: false,
         extrasEnabled: false,
@@ -165,14 +168,36 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
     const productsSectionRef = useRef(null);
     const beveragesSectionRef = useRef(null);
     const extrasSectionRef = useRef(null);
+    // Refs por categoria individual para el sidebar scroll-to. Key = "<variant>:<categoryId>".
+    const categoryRefsRef = useRef(new Map());
+    const setCategoryRef = (key) => (el) => {
+        if (el) categoryRefsRef.current.set(key, el);
+        else categoryRefsRef.current.delete(key);
+    };
+    const scrollToCategory = (key) => {
+        const el = categoryRefsRef.current.get(key);
+        if (el && typeof el.scrollIntoView === 'function') {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
 
     // Reiniciar modal al abrir para evitar el bug de persistencia
     useEffect(() => {
         if (isOpen) {
             if (typeof resetOrder === 'function') resetOrder();
             setShowCustomerFields(false);
+            setMobileStep(1);
         }
     }, [isOpen]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const mq = window.matchMedia('(max-width: 767px)');
+        const sync = () => setIsStepsMode(mq.matches);
+        sync();
+        mq.addEventListener('change', sync);
+        return () => mq.removeEventListener('change', sync);
+    }, []);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -523,6 +548,73 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
         if (!searchQuery) {
             setSearchExpanded(false);
         }
+    };
+
+    // Validaciones por paso (solo aplican en isStepsMode, pero las dejamos genericas).
+    const hasCartItems = (manualOrder.items?.length ?? 0) > 0;
+
+    const isCustomerStageValid = () => {
+        const hasClientName = manualOrder.client_name && manualOrder.client_name.trim().length >= 3;
+        const exactRutLength = manualOrder.client_rut?.trim().length || 0;
+        const isRutRequiredAndValid = exactRutLength > 0 && rutValid;
+        const isPhoneStrictlyValid = phoneValid === true;
+        const namedAreasMode =
+            branchDeliveryCfg &&
+            manualOrder.order_type === 'delivery' &&
+            effectiveDeliveryPricingMode(branchDeliveryCfg) === 'named' &&
+            (branchDeliveryCfg.namedAreas?.length ?? 0) > 0;
+        const distanceMode =
+            branchDeliveryCfg &&
+            manualOrder.order_type === 'delivery' &&
+            effectiveDeliveryPricingMode(branchDeliveryCfg) === 'distance';
+        const hasNamedZoneOk =
+            !namedAreasMode || String(manualOrder.delivery_named_area_id ?? '').trim().length > 0;
+        const addrOk =
+            Boolean(manualOrder.delivery_address && manualOrder.delivery_address.trim().length >= 5);
+        const isDeliveryValid =
+            manualOrder.order_type !== 'delivery'
+            || (namedAreasMode && hasNamedZoneOk)
+            || (distanceMode && addrOk)
+            || (
+                !namedAreasMode &&
+                !distanceMode &&
+                manualOrder.order_type === 'delivery' &&
+                branchDeliveryCfg &&
+                (addrOk || String(manualOrder.delivery_named_area_id ?? '').trim().length > 0)
+            )
+            || (
+                manualOrder.order_type === 'delivery' &&
+                !branchDeliveryCfg &&
+                addrOk
+            );
+        return Boolean(hasClientName && isRutRequiredAndValid && isPhoneStrictlyValid && isDeliveryValid);
+    };
+
+    const canAdvanceFromStep1 = hasCartItems;
+    const canAdvanceFromStep2 = isCustomerStageValid();
+
+    const goNextStep = () => {
+        if (mobileStep === 1) {
+            if (!canAdvanceFromStep1) {
+                showNotify?.('Agrega al menos un producto al carrito.', 'warning');
+                return;
+            }
+            setMobileStep(2);
+            if (!manualOrder.client_name || manualOrder.client_name.trim().length < 3) {
+                setShowCustomerFields(true);
+            }
+        } else if (mobileStep === 2) {
+            if (!canAdvanceFromStep2) {
+                showNotify?.('Completa nombre, RUT, telefono y direccion (si aplica) antes de continuar.', 'warning');
+                setShowCustomerFields(true);
+                return;
+            }
+            setMobileStep(3);
+        }
+    };
+
+    const goPrevStep = () => {
+        if (mobileStep > 1) setMobileStep(mobileStep - 1);
     };
 
     // Validación del formulario
@@ -1573,7 +1665,11 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
                 </header>
                 {sectionNote ? <p className="manual-order-catalog-section__note">{sectionNote}</p> : null}
                 {catalog.groupedCategories.map((cat) => (
-                    <div key={cat.id} className="manual-order-category-section">
+                    <div
+                        key={cat.id}
+                        className="manual-order-category-section"
+                        ref={setCategoryRef(`${variant}:${cat.id}`)}
+                    >
                         <h3 className="manual-order-category-title">{cat.name}</h3>
                         <div className="manual-order-products-grid">
                             {cat.products.map((p) => renderProductCard(p, sourceLabel, variant))}
@@ -1581,7 +1677,10 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
                     </div>
                 ))}
                 {catalog.uncategorized.length > 0 && (
-                    <div className="manual-order-category-section">
+                    <div
+                        className="manual-order-category-section"
+                        ref={setCategoryRef(`${variant}:__uncat__`)}
+                    >
                         <h3 className="manual-order-category-title">Otros</h3>
                         <div className="manual-order-products-grid">
                             {catalog.uncategorized.map((p) => renderProductCard(p, sourceLabel, variant))}
@@ -1597,16 +1696,52 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
     const hasBeveragesSection = cartUpsellCatalogs.beveragesEnabled && beverageProducts.length > 0;
     const hasExtrasSection = cartUpsellCatalogs.extrasEnabled && extraProducts.length > 0;
 
+    const sidebarCategories = useMemo(() => {
+        const items = [];
+        const pushFromCatalog = (catalog, variant) => {
+            catalog.groupedCategories.forEach((cat) => {
+                items.push({
+                    key: `${variant}:${cat.id}`,
+                    name: cat.name,
+                    count: cat.products.length,
+                    variant,
+                });
+            });
+            if (catalog.uncategorized.length > 0) {
+                items.push({
+                    key: `${variant}:__uncat__`,
+                    name: variant === 'products' ? 'Otros' : variant === 'beverages' ? 'Bebidas' : 'Extras',
+                    count: catalog.uncategorized.length,
+                    variant,
+                });
+            }
+        };
+        if (hasProductsSection) pushFromCatalog(groupedBaseCatalog, 'products');
+        if (hasBeveragesSection) pushFromCatalog(groupedBeverageCatalog, 'beverages');
+        if (hasExtrasSection) pushFromCatalog(groupedExtrasCatalog, 'extras');
+        return items;
+    }, [
+        groupedBaseCatalog,
+        groupedBeverageCatalog,
+        groupedExtrasCatalog,
+        hasProductsSection,
+        hasBeveragesSection,
+        hasExtrasSection,
+    ]);
+
     const scrollToSection = (sectionRef) => {
         sectionRef?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
 
     if (!isOpen) return null;
 
+    const cartCount = manualOrder.items.reduce((acc, i) => acc + i.quantity, 0);
+    const stepLabels = ['Productos', 'Cliente', 'Pago'];
+
     return (
         <div className="manual-order-overlay" onClick={onClose}>
             <div
-                className="manual-order-container"
+                className={`manual-order-container${isStepsMode ? ` mobile-steps mobile-step-${mobileStep}` : ''}`}
                 onClick={e => e.stopPropagation()}
             >
                 {/* DRAG HANDLER (Invisible top area for gestures) */}
@@ -1626,7 +1761,25 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
                     <X size={24} />
                 </button>
 
-                {/* HEADER REMOVED */}
+                {/* WIZARD PROGRESS (solo movil) */}
+                {isStepsMode ? (
+                    <div className="manual-order-steps-progress" aria-label={`Paso ${mobileStep} de 3`}>
+                        {stepLabels.map((label, idx) => {
+                            const n = idx + 1;
+                            const isActive = mobileStep === n;
+                            const isDone = mobileStep > n;
+                            return (
+                                <div
+                                    key={label}
+                                    className={`manual-order-steps-progress__item${isActive ? ' is-active' : ''}${isDone ? ' is-done' : ''}`}
+                                >
+                                    <span className="manual-order-steps-progress__dot">{isDone ? <CheckCircle2 size={14} /> : n}</span>
+                                    <span className="manual-order-steps-progress__label">{label}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : null}
 
                 {/* CONTENT: 2 COLUMNAS */}
                 <div className="manual-order-body">
@@ -1698,29 +1851,50 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
                             </button>
                         </div>
 
-                        {/* Productos agrupados por categoría */}
-                        <div className="manual-order-categories-scroll">
-                            {!hasAnyResults ? (
-                                <div className="manual-order-empty-search" style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
-                                    No se encontraron productos
-                                </div>
-                            ) : (
-                                <>
-                                    <div ref={productsSectionRef}>
-                                        {renderCatalogSection(groupedBaseCatalog, 'Productos', '', 'products', 'Producto regular del menú para este pedido manual.')}
-                                    </div>
-                                    {beverageProducts.length > 0 && (
-                                        <div ref={beveragesSectionRef}>
-                                            {renderCatalogSection(groupedBeverageCatalog, 'Bebidas', 'Bebida', 'beverages', 'Opciones de bebida activas para esta sucursal.')}
-                                        </div>
-                                    )}
-                                    {extraProducts.length > 0 && (
-                                        <div ref={extrasSectionRef}>
-                                            {renderCatalogSection(groupedExtrasCatalog, 'Extras', 'Extra', 'extras', 'Complementos opcionales disponibles en carrito.')}
-                                        </div>
-                                    )}
-                                </>
+                        {/* Layout: sidebar de categorias + scroll de productos */}
+                        <div className="manual-order-catalog-wrap">
+                            {sidebarCategories.length > 0 && (
+                                <aside
+                                    className="manual-order-categories-side"
+                                    aria-label="Lista de categorias"
+                                >
+                                    {sidebarCategories.map((it) => (
+                                        <button
+                                            key={it.key}
+                                            type="button"
+                                            className={`manual-order-categories-side__btn manual-order-categories-side__btn--${it.variant}`}
+                                            onClick={() => scrollToCategory(it.key)}
+                                            title={it.name}
+                                        >
+                                            <span className="manual-order-categories-side__name">{it.name}</span>
+                                            <span className="manual-order-categories-side__count">{it.count}</span>
+                                        </button>
+                                    ))}
+                                </aside>
                             )}
+                            <div className="manual-order-categories-scroll">
+                                {!hasAnyResults ? (
+                                    <div className="manual-order-empty-search" style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                                        No se encontraron productos
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div ref={productsSectionRef}>
+                                            {renderCatalogSection(groupedBaseCatalog, 'Productos', '', 'products', 'Producto regular del menú para este pedido manual.')}
+                                        </div>
+                                        {beverageProducts.length > 0 && (
+                                            <div ref={beveragesSectionRef}>
+                                                {renderCatalogSection(groupedBeverageCatalog, 'Bebidas', 'Bebida', 'beverages', 'Opciones de bebida activas para esta sucursal.')}
+                                            </div>
+                                        )}
+                                        {extraProducts.length > 0 && (
+                                            <div ref={extrasSectionRef}>
+                                                {renderCatalogSection(groupedExtrasCatalog, 'Extras', 'Extra', 'extras', 'Complementos opcionales disponibles en carrito.')}
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -1751,6 +1925,37 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
                         </>
                     )}
                 </div>
+
+                {/* NAV BAR INFERIOR (solo movil wizard) */}
+                {isStepsMode ? (
+                    <div className="manual-order-steps-nav">
+                        {mobileStep > 1 ? (
+                            <button
+                                type="button"
+                                className="manual-order-steps-nav__btn manual-order-steps-nav__btn--back"
+                                onClick={goPrevStep}
+                            >
+                                Atras
+                            </button>
+                        ) : (
+                            <span className="manual-order-steps-nav__spacer" />
+                        )}
+                        {mobileStep < 3 ? (
+                            <button
+                                type="button"
+                                className="manual-order-steps-nav__btn manual-order-steps-nav__btn--next"
+                                onClick={goNextStep}
+                                disabled={mobileStep === 1 ? !canAdvanceFromStep1 : !canAdvanceFromStep2}
+                            >
+                                {mobileStep === 1 && cartCount > 0
+                                    ? `Siguiente (${cartCount} items - ${formatCurrency(totalToPay)})`
+                                    : 'Siguiente'}
+                            </button>
+                        ) : (
+                            <span className="manual-order-steps-nav__hint">Confirma el pedido abajo</span>
+                        )}
+                    </div>
+                ) : null}
             </div>
         </div>
     );
