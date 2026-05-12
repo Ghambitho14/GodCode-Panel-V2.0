@@ -317,7 +317,9 @@ export const useManualOrder = (showNotify, onOrderSaved, onClose, registerSale, 
             return;
         }
 
-        const sanitizeInput = (text) => text ? text.replace(/<[^>]*>?/gm, "").trim() : "";
+        // Solo quita etiquetas HTML cerradas (`<...>`). No usar `>?` opcional: borraba
+        // texto tras un `<` suelto (ej. comentarios de cocina con "<").
+        const sanitizeInput = (text) => (text ? String(text).replace(/<[^>]*>/g, '').trim() : '');
 
         const digitCount = (manualOrder.client_phone || '').replace(/\D/g, '').length;
         if (!manualOrder.client_name || manualOrder.client_name.trim().length < 3 || digitCount < 11 || manualOrder.items.length === 0) {

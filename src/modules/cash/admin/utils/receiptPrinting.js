@@ -155,6 +155,14 @@ function stripInternalNoteHints(rawNote) {
 		.trim();
 }
 
+/** Nota por línea persistida en `items` (jsonb); tolera valores no-string. */
+function plainItemNote(item) {
+	const n = item?.note;
+	if (n == null) return '';
+	const s = typeof n === 'string' ? n : String(n);
+	return s.trim();
+}
+
 /**
  * Canal mostrado en «#n - En el local - WEB» (override opcional desde options).
  * @param {Record<string, unknown>} order
@@ -357,7 +365,7 @@ function buildTicketHtml(order, branchName, logoUrl, variant, printOptions = {})
 			// Comentario por item: solo se imprime en el ticket de cocina. Se
 			// rendea en mayusculas y con marca "!! NOTA:" para que el cocinero
 			// no se lo coma de un vistazo.
-			const noteRaw = typeof item.note === 'string' ? item.note.trim() : '';
+			const noteRaw = plainItemNote(item);
 			const itemNoteHtml = noteRaw
 				? `<div class="k-item-note">!! NOTA: ${escapeHtml(noteRaw.toUpperCase())}</div>`
 				: '';
@@ -538,7 +546,7 @@ function buildTicketHtml(order, branchName, logoUrl, variant, printOptions = {})
 		// Comentario por item: tambien aparece en el ticket de caja para que el
 		// cliente vea que su pedido especial quedo registrado. Se rendea con
 		// "NOTA: ..." debajo del nombre, sin borde fuerte (no es para cocina).
-		const noteRaw = typeof item.note === 'string' ? item.note.trim() : '';
+		const noteRaw = plainItemNote(item);
 		const itemNoteHtml = noteRaw
 			? `<div class="c-item-note">NOTA: ${escapeHtml(noteRaw.toUpperCase())}</div>`
 			: '';

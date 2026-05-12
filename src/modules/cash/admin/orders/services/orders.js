@@ -45,6 +45,13 @@ function isDeliveryOrderType(raw) {
     return t === 'delivery' || t === 'envio' || t === 'envío' || t === 'despacho';
 }
 
+/** Nota por línea (cocina / ticket); mismo límite que `useManualOrder`. */
+function normalizePersistedItemNote(raw) {
+    if (raw == null) return null;
+    const s = String(raw).trim();
+    return s ? s.slice(0, 140) : null;
+}
+
 /**
  * Servicio Senior de Órdenes
  * Encapsula la lógica de negocio de creación de pedidos tanto para 
@@ -85,6 +92,7 @@ export const ordersService = {
                     .map((item) => [String(item.id), {
                         quantity: Math.max(1, Number(item.quantity) || 1),
                         description: item.description ?? null,
+                        note: normalizePersistedItemNote(item.note),
                     }])
             );
 
@@ -162,6 +170,7 @@ export const ordersService = {
                     has_discount: false,
                     discount_price: null,
                     description: requested.description,
+                    note: requested.note,
                     manual_order_source: null,
                     is_extra: false,
                 });
@@ -180,6 +189,7 @@ export const ordersService = {
                     has_discount: Boolean(extraItem.has_discount) && Number(extraItem.discount_price) > 0,
                     discount_price: Boolean(extraItem.has_discount) && Number(extraItem.discount_price) > 0 ? Number(extraItem.discount_price) : null,
                     description: extraItem.description || null,
+                    note: normalizePersistedItemNote(extraItem.note),
                     manual_order_source: 'extras',
                     is_extra: true,
                 });
@@ -428,33 +438,43 @@ export const ordersService = {
             }
 
             // La RPC `create_order_transaction` ya setea: channel, total, delivery_fee,
-            // delivery_address y handoff_code. El endpoint legacy /api/public-order-delivery
-            // hacía además validación server-side y enriquecía el address con lat/lng/maps_url.
-            // Acá solo enriquecemos opcionalmente con coordenadas si vinieron del cliente
-            // (sin re-validar tarifa: la RPC ya validó margen ±50 vs total recalculado).
+            // delivery_address y handoff_code. En algunos despliegues la RPC reconstruye
+            // `items` jsonb sin campos extra (p. ej. `note` por línea). Reescribimos `items`
+            // y `note` con lo ya validado en cliente para que cocina/caja vean las notas.
             const orderId = extractOrderId(newOrder);
-            if (
-                orderId &&
-                deliveryMode &&
-                isFiniteLatLng(orderData.delivery_lat, orderData.delivery_lng)
-            ) {
-                const lat = Number(orderData.delivery_lat);
-                const lng = Number(orderData.delivery_lng);
-                const enrichedAddress = {
-                    ...(pDeliveryPayload && typeof pDeliveryPayload === 'object' ? pDeliveryPayload : {}),
-                    lat,
-                    lng,
-                    maps_url: buildGoogleMapsDirectionsUrl(lat, lng),
+            let persistedOrder = newOrder;
+            if (orderId) {
+                const postCreatePatch = {
+                    items: normalizedItems,
+                    note: finalNote,
                 };
-                // Best-effort: si falla, el pedido ya quedó creado con el address
-                // base puesto por la RPC; no rompemos el flujo.
-                await supabase
+                if (
+                    deliveryMode &&
+                    isFiniteLatLng(orderData.delivery_lat, orderData.delivery_lng)
+                ) {
+                    const lat = Number(orderData.delivery_lat);
+                    const lng = Number(orderData.delivery_lng);
+                    postCreatePatch.delivery_address = {
+                        ...(pDeliveryPayload && typeof pDeliveryPayload === 'object' ? pDeliveryPayload : {}),
+                        lat,
+                        lng,
+                        maps_url: buildGoogleMapsDirectionsUrl(lat, lng),
+                    };
+                }
+                const { data: patchedRow, error: postCreateError } = await supabase
                     .from(TABLES.orders)
-                    .update({ delivery_address: enrichedAddress })
-                    .eq('id', orderId);
+                    .update(postCreatePatch)
+                    .eq('id', orderId)
+                    .select()
+                    .maybeSingle();
+                if (postCreateError) {
+                    console.warn('createOrder: post-create sync (items/note/address) failed', postCreateError);
+                } else if (patchedRow) {
+                    persistedOrder = patchedRow;
+                }
             }
 
-            return { order: newOrder, receiptUploadFailed };
+            return { order: persistedOrder, receiptUploadFailed };
         } catch (error) {
             throw error;
         }

@@ -448,7 +448,7 @@ export const useOrderEdit = (
 			return;
 		}
 
-		const sanitizeInput = (text) => (text ? text.replace(/<[^>]*>?/gm, '').trim() : '');
+		const sanitizeInput = (text) => (text ? String(text).replace(/<[^>]*>/g, '').trim() : '');
 		// En edicion las reglas son mas laxas que en creacion: hay pedidos
 		// (sobre todo los que entran desde la web publica) que se crearon sin
 		// RUT o con telefono incompleto. Solo exigimos nombre + items; RUT y
