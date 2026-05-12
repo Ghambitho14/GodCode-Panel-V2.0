@@ -441,6 +441,13 @@ export const useCashSystem = (showNotify, branchId) => {
                 if (isCourierPayout) {
                     acc.deliveryPaidToCourier += amount;
                 }
+                // Devolución de venta (`registerRefund`): la venta sigue contada como `sale`
+                // en ingresos; restamos aquí para que el KPI "Ingresos" refleje efectivo neto
+                // que quedó por ventas (esa plata ya salió de caja).
+                const refundOrderId = m.order_id ?? m.orderId;
+                if (refundOrderId != null && String(refundOrderId).trim() !== '') {
+                    acc.income -= amount;
+                }
             } else {
                 if (m.payment_method === 'cash') acc.cash += amount;
                 else if (m.payment_method === 'card') acc.card += amount;
