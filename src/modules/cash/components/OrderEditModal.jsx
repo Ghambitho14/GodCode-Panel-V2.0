@@ -1313,24 +1313,33 @@ const OrderEditModal = ({ isOpen, onClose, order, products, categories = [], onO
 				<div style={{
 					marginBottom: '12px',
 					padding: '12px',
-					background: 'rgba(230, 57, 70, 0.08)',
-					border: '1px solid rgba(230, 57, 70, 0.3)',
+					background: 'rgba(148, 163, 184, 0.08)',
+					border: '1px solid rgba(148, 163, 184, 0.28)',
 					borderRadius: '8px',
 					animation: 'fadeIn 0.3s ease',
 				}}>
 					<div style={{
 						fontSize: '11px',
-						color: '#e63946',
+						color: '#64748b',
 						fontWeight: '800',
-						marginBottom: '8px',
+						marginBottom: '6px',
 						display: 'flex',
 						alignItems: 'center',
 						gap: '6px',
 						textTransform: 'uppercase',
 					}}>
-						<Upload size={14} />
-						Adjuntar Comprobante (Opcional)
+						<Upload size={14} aria-hidden />
+						Comprobante (opcional)
 					</div>
+					<p style={{
+						margin: '0 0 10px',
+						fontSize: '10px',
+						lineHeight: 1.35,
+						color: '#64748b',
+						fontWeight: 500,
+					}}>
+						Podés guardar sin imagen. El comprobante se puede subir después desde la tarjeta del pedido.
+					</p>
 
 					<label
 						htmlFor="receipt-upload-edit"
@@ -1342,10 +1351,18 @@ const OrderEditModal = ({ isOpen, onClose, order, products, categories = [], onO
 							gap: '8px',
 							padding: '16px',
 							background: 'rgba(0, 0, 0, 0.2)',
-							border: '1px dashed rgba(230, 57, 70, 0.3)',
+							border: '1px dashed rgba(148, 163, 184, 0.45)',
 							borderRadius: '6px',
 							cursor: 'pointer',
 							transition: 'all 0.2s ease',
+						}}
+						onMouseEnter={(e) => {
+							e.currentTarget.style.background = 'rgba(148, 163, 184, 0.08)';
+							e.currentTarget.style.borderColor = 'rgba(100, 116, 139, 0.65)';
+						}}
+						onMouseLeave={(e) => {
+							e.currentTarget.style.background = 'rgba(0, 0, 0, 0.2)';
+							e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.45)';
 						}}
 					>
 						<AdminIconSlot Icon={FileText} slotSize="md" tone="accent" />

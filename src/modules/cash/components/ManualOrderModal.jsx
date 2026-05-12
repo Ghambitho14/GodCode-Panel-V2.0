@@ -623,10 +623,6 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
         const hasClientName = manualOrder.client_name && manualOrder.client_name.trim().length >= 3;
         const hasPaymentType = !!manualOrder.payment_type;
 
-        // Validación específica por tipo de pago
-        // El comprobante de transferencia ahora es opcional
-        let isPaymentValid = true;
-
         const exactRutLength = manualOrder.client_rut?.trim().length || 0;
         const isRutRequiredAndValid = exactRutLength > 0 && rutValid;
         const isPhoneStrictlyValid = phoneValid === true;
@@ -661,7 +657,8 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
                 addrOk
             );
 
-        return hasItems && hasClientName && hasPaymentType && isPaymentValid && isRutRequiredAndValid && isPhoneStrictlyValid && isDeliveryValid;
+        // Transferencia: comprobante opcional (sin archivo el backend guarda un placeholder).
+        return hasItems && hasClientName && hasPaymentType && isRutRequiredAndValid && isPhoneStrictlyValid && isDeliveryValid;
     };
 
     const orderTypeSection = (
@@ -1370,29 +1367,38 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
                 </button>
             </div>
 
-            {/* Comprobante de transferencia - Destacado */}
+            {/* Comprobante de transferencia (opcional): estilo neutro para no leerse como bloqueo */}
             {manualOrder.payment_type === 'online' && (
                 <div style={{
                     marginBottom: '12px',
                     padding: '12px',
-                    background: 'rgba(230, 57, 70, 0.08)',
-                    border: '1px solid rgba(230, 57, 70, 0.3)',
+                    background: 'rgba(148, 163, 184, 0.08)',
+                    border: '1px solid rgba(148, 163, 184, 0.28)',
                     borderRadius: '8px',
                     animation: 'fadeIn 0.3s ease'
                 }}>
                     <div style={{
                         fontSize: '11px',
-                        color: '#e63946',
+                        color: '#64748b',
                         fontWeight: '800',
-                        marginBottom: '8px',
+                        marginBottom: '6px',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '6px',
                         textTransform: 'uppercase'
                     }}>
-                        <Upload size={14} />
-                        Adjuntar Comprobante (Opcional)
+                        <Upload size={14} aria-hidden />
+                        Comprobante (opcional)
                     </div>
+                    <p style={{
+                        margin: '0 0 10px',
+                        fontSize: '10px',
+                        lineHeight: 1.35,
+                        color: '#64748b',
+                        fontWeight: 500,
+                    }}>
+                        Podés confirmar el pedido sin imagen. Si querés, subí el comprobante ahora o después desde la tarjeta del pedido.
+                    </p>
 
                     <label
                         htmlFor="receipt-upload"
@@ -1404,18 +1410,18 @@ const ManualOrderModal = ({ isOpen, onClose, products, categories = [], onOrderS
                             gap: '8px',
                             padding: '16px',
                             background: 'rgba(0, 0, 0, 0.2)',
-                            border: '1px dashed rgba(230, 57, 70, 0.3)',
+                            border: '1px dashed rgba(148, 163, 184, 0.45)',
                             borderRadius: '6px',
                             cursor: 'pointer',
                             transition: 'all 0.2s ease',
                         }}
                         onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(230, 57, 70, 0.05)';
-                            e.currentTarget.style.borderColor = '#e63946';
+                            e.currentTarget.style.background = 'rgba(148, 163, 184, 0.08)';
+                            e.currentTarget.style.borderColor = 'rgba(100, 116, 139, 0.65)';
                         }}
                         onMouseLeave={(e) => {
                             e.currentTarget.style.background = 'rgba(0, 0, 0, 0.2)';
-                            e.currentTarget.style.borderColor = 'rgba(230, 57, 70, 0.3)';
+                            e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.45)';
                         }}
                     >
                         <AdminIconSlot Icon={FileText} slotSize="md" tone="accent" />

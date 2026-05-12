@@ -233,8 +233,22 @@ const OrderCard = ({ order, queueIndex, moveOrder, setReceiptModalOrder, branch,
                             </button>
                         </div>
                     ) : (
-                        <button onClick={() => setReceiptModalOrder(order)} className="receipt-link" style={{ background: 'rgba(230, 57, 70, 0.1)', color: '#e63946', border: '1px solid rgba(230, 57, 70, 0.2)', width: '100%', display: 'flex', justifyContent: 'center', cursor: 'pointer' }}>
-                            <Upload size={14} /> Adjuntar Comprobante
+                        <button
+                            type="button"
+                            onClick={() => setReceiptModalOrder(order)}
+                            className="receipt-link"
+                            title="Opcional: subir imagen del comprobante"
+                            style={{
+                                background: 'rgba(148, 163, 184, 0.12)',
+                                color: '#64748b',
+                                border: '1px solid rgba(148, 163, 184, 0.35)',
+                                width: '100%',
+                                display: 'flex',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            <Upload size={14} aria-hidden /> Comprobante (opcional)
                         </button>
                     )}
                 </div>
