@@ -590,23 +590,64 @@ export const AdminProvider = ({
 		loadClientHistory(client);
 	}, [loadClientHistory]);
 
+	/** `branch_id` del row Realtime (INSERT/UPDATE/DELETE). */
+	const orderRealtimeBranchId = (row) => {
+		if (!row || typeof row !== 'object') return null;
+		const bid = row.branch_id ?? row.branchId;
+		if (bid == null || bid === '') return null;
+		return String(bid);
+	};
+
 	const handleRealtimeEvent = useCallback((payload) => {
+		const sid = selectedBranch?.id ?? null;
+		if (!sid) return;
+
+		const isAllBranches = sid === 'all';
+		const isSingleBranch = sid !== 'all';
+
 		if (payload.eventType === 'INSERT') {
-			const newOrder = sanitizeOrder(payload.new);
-			setOrders(prev => [newOrder, ...prev]);
-			showNotify(`Nuevo pedido #${newOrder.id.toString().slice(-4)}`, 'success');
-			playOrderNotificationSound();
+			const raw = payload.new;
+			const bid = orderRealtimeBranchId(raw);
+			if (isSingleBranch && bid !== String(sid)) return;
+
+			const newOrder = sanitizeOrder(raw);
+			setOrders((prev) => [newOrder, ...prev]);
+
+			if (isSingleBranch) {
+				showNotify(`Nuevo pedido #${newOrder.id.toString().slice(-4)}`, 'success');
+				playOrderNotificationSound();
+			} else {
+				const branchName =
+					(Array.isArray(branches) ? branches.find((b) => String(b.id) === bid)?.name : null) ||
+					'Sucursal';
+				showNotify(`Nuevo pedido #${newOrder.id.toString().slice(-4)} · ${branchName}`, 'success');
+			}
+
 			if (inventoryRefreshTimerRef.current) clearTimeout(inventoryRefreshTimerRef.current);
 			inventoryRefreshTimerRef.current = setTimeout(() => {
 				inventoryRefreshTimerRef.current = null;
 				loadData(true);
 			}, 500);
-		} else if (payload.eventType === 'UPDATE') {
-			setOrders(prev => prev.map(o => o.id === payload.new?.id ? sanitizeOrder(payload.new) : o));
-		} else if (payload.eventType === 'DELETE') {
-			setOrders(prev => prev.filter(o => o.id !== payload.old?.id));
+			return;
 		}
-	}, [showNotify, loadData]);
+
+		if (payload.eventType === 'UPDATE') {
+			const raw = payload.new;
+			const bid = orderRealtimeBranchId(raw);
+			if (isSingleBranch && bid != null && bid !== String(sid)) return;
+			if (!raw?.id) return;
+			setOrders((prev) => prev.map((o) => (o.id === raw.id ? sanitizeOrder(raw) : o)));
+			return;
+		}
+
+		if (payload.eventType === 'DELETE') {
+			const raw = payload.old;
+			const bid = orderRealtimeBranchId(raw);
+			if (isSingleBranch && bid != null && bid !== String(sid)) return;
+			if (!raw?.id) return;
+			setOrders((prev) => prev.filter((o) => o.id !== raw.id));
+		}
+	}, [showNotify, loadData, selectedBranch, branches]);
 
 	useEffect(() => {
 		const onFirstInteract = () => {
@@ -624,19 +665,29 @@ export const AdminProvider = ({
 
 	useEffect(() => {
 		loadData();
+		const onVisibilityChange = () => {
+			if (document.visibilityState === 'visible' && !isModalOpen && !editingProduct) loadData(true);
+		};
+		document.addEventListener('visibilitychange', onVisibilityChange);
+
+		// Sin sucursal resuelta no suscribimos: evita INSERT globales y sonidos ajenos al cargar.
+		if (!selectedBranch?.id) {
+			return () => {
+				document.removeEventListener('visibilitychange', onVisibilityChange);
+			};
+		}
+
+		// Una sucursal: filtro server-side. "Todas": sin filtro; el handler acota sonido y estado.
 		const channel = supabase
 			.channel('table-db-changes')
 			.on('postgres_changes', {
 				event: '*',
 				schema: 'public',
 				table: 'orders',
-				filter: selectedBranch && selectedBranch.id !== 'all' ? `branch_id=eq.${selectedBranch.id}` : undefined
+				filter: selectedBranch.id !== 'all' ? `branch_id=eq.${selectedBranch.id}` : undefined,
 			}, handleRealtimeEvent)
 			.subscribe();
-		const onVisibilityChange = () => {
-			if (document.visibilityState === 'visible' && !isModalOpen && !editingProduct) loadData(true);
-		};
-		document.addEventListener('visibilitychange', onVisibilityChange);
+
 		return () => {
 			document.removeEventListener('visibilitychange', onVisibilityChange);
 			supabase.removeChannel(channel);
