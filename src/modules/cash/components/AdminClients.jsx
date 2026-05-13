@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Plus, Download, Filter, MoreVertical, ArrowUpDown, ChevronLeft, ChevronRight, MessageCircle, Star, UserCircle, Copy } from 'lucide-react';
+import { Search, Plus, Download, Filter, MoreVertical, ArrowUpDown, ChevronLeft, ChevronRight, MessageCircle, Star, UserCircle, Copy, Trash2, Loader2 } from 'lucide-react';
+import { supabase, TABLES } from '@/integrations/supabase';
 import ClientFormModal from './ClientFormModal';
 import AdminIconSlot from './AdminIconSlot';
 import { downloadExcel } from '@/shared/utils/exportUtils';
@@ -8,7 +9,7 @@ import { getScrollableAncestors } from '@/shared/utils/scrollAncestors';
 import { WhatsAppGlyph, buildWhatsAppUrl } from '@/shared/utils/phoneWhatsApp';
 import { formatMoneyCl } from '@/shared/utils/numberSafe';
 
-const AdminClients = ({ clients, orders, onSelectClient, onClientCreated, showNotify, companyId }) => {
+const AdminClients = ({ clients, orders, onSelectClient, onClientCreated, onClientDeleted, showNotify, companyId }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [activeFilter, setActiveFilter] = useState('all'); // all, elite, top, frequent
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -18,6 +19,7 @@ const AdminClients = ({ clients, orders, onSelectClient, onClientCreated, showNo
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
     const [menuOpenClientId, setMenuOpenClientId] = useState(null);
+    const [deletingClientId, setDeletingClientId] = useState(null);
     /** Coordenadas viewport para menú fijo (evita sticky header y overflow del main) */
     const [kebabMenuPos, setKebabMenuPos] = useState(null);
 
@@ -42,7 +44,7 @@ const AdminClients = ({ clients, orders, onSelectClient, onClientCreated, showNo
         const vh = window.innerHeight;
         const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
         const menuW = Math.min(11.5 * remPx, vw - margin * 2);
-        const menuH = 168;
+        const menuH = 220;
 
         let left = r.right - menuW;
         left = Math.max(margin, Math.min(left, vw - menuW - margin));
@@ -344,6 +346,48 @@ const AdminClients = ({ clients, orders, onSelectClient, onClientCreated, showNo
         closeKebabMenu();
     };
 
+    const handleDeleteClient = async (client) => {
+        if (!companyId) {
+            showNotify('No hay empresa asociada', 'error');
+            return;
+        }
+        const label = client.name?.trim() || 'este cliente';
+        const ok = window.confirm(
+            `¿Eliminar a ${label}? Esta acción no se puede deshacer.\n\nSi el cliente tiene pedidos u otros registros vinculados, deberás eliminarlos o reasignarlos antes.`,
+        );
+        if (!ok) return;
+
+        setDeletingClientId(client.id);
+        try {
+            const { error } = await supabase
+                .from(TABLES.clients)
+                .delete()
+                .eq('id', client.id)
+                .eq('company_id', companyId);
+
+            if (error) {
+                const msg = String(error.message || '');
+                if (error.code === '23503' || /foreign key|llave foránea|violates foreign key/i.test(msg)) {
+                    showNotify(
+                        'No se puede eliminar: hay pedidos u otros datos vinculados a este cliente.',
+                        'error',
+                    );
+                } else {
+                    showNotify(msg || 'Error al eliminar cliente', 'error');
+                }
+                return;
+            }
+            showNotify('Cliente eliminado', 'success');
+            closeKebabMenu();
+            onClientDeleted?.();
+        } catch (e) {
+            console.error('Error eliminando cliente:', e);
+            showNotify('Error al eliminar cliente', 'error');
+        } finally {
+            setDeletingClientId(null);
+        }
+    };
+
     const kebabPortalTarget = typeof document !== 'undefined'
         ? document.querySelector('.admin-layout') ?? document.body
         : null;
@@ -594,6 +638,20 @@ const AdminClients = ({ clients, orders, onSelectClient, onClientCreated, showNo
                                 </button>
                             </>
                         ) : null}
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="clients-kebab-menu__item clients-kebab-menu__item--danger"
+                            disabled={deletingClientId === kebabOpenClient.id}
+                            onClick={() => void handleDeleteClient(kebabOpenClient)}
+                        >
+                            {deletingClientId === kebabOpenClient.id ? (
+                                <Loader2 size={16} aria-hidden className="clients-kebab-menu__icon animate-spin" />
+                            ) : (
+                                <Trash2 size={16} aria-hidden className="clients-kebab-menu__icon" />
+                            )}
+                            Eliminar cliente
+                        </button>
                     </div>,
                     kebabPortalTarget,
                 )

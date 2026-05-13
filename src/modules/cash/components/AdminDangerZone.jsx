@@ -422,7 +422,9 @@ const AdminDangerZone = ({ showNotify, loadData, isMobile, selectedBranch, compa
             </div>
 
             <div className="admin-danger-body">
-              <p style={{ fontSize: '0.9rem', marginBottom: 20 }}>Acción irreversible. Ingresa credenciales.</p>
+              <p style={{ fontSize: '0.9rem', marginBottom: 20 }}>
+                Acción irreversible. Ingresa credenciales.
+              </p>
               <div className="form-group">
                 <label>Email Admin</label>
                 <input 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { supabase, TABLES } from "@/integrations/supabase";
@@ -10,6 +10,7 @@ import { AdminProvider } from "./pages/AdminProvider";
 import { LocationProvider } from "../context/LocationContext";
 import { CashProvider } from "../context/CashContext";
 import { BusinessProvider } from "../context/BusinessContext";
+import { applyDocumentFavicon } from "@/shared/utils/documentFavicon";
 
 interface AdminAppProps {
 	/** Opcional: forzar empresa (solo si necesitás override explícito; por defecto se toma de la sesión). */
@@ -139,6 +140,23 @@ export function AdminApp({
 		};
 	}, [companyIdProp, navigate]);
 
+	// El logo del negocio vive en `companies.theme_config.logoUrl` (Cloudinary).
+	// El prop `logoUrlProp` sigue ganando si el caller lo provee explicitamente.
+	const themeLogoUrl = useMemo(() => {
+		return typeof resolvedThemeConfig?.logoUrl === "string" && resolvedThemeConfig.logoUrl.trim()
+			? resolvedThemeConfig.logoUrl.trim()
+			: null;
+	}, [resolvedThemeConfig]);
+	const effectiveLogoUrl = logoUrlProp ?? themeLogoUrl;
+
+	useEffect(() => {
+		if (gateLoading || !resolvedCompanyId) return;
+		applyDocumentFavicon(effectiveLogoUrl);
+		return () => {
+			applyDocumentFavicon(null);
+		};
+	}, [effectiveLogoUrl, gateLoading, resolvedCompanyId]);
+
 	if (gateLoading || !resolvedCompanyId) {
 		return (
 			<div
@@ -156,14 +174,6 @@ export function AdminApp({
 			</div>
 		);
 	}
-
-	// El logo del negocio vive en `companies.theme_config.logoUrl` (Cloudinary).
-	// El prop `logoUrlProp` sigue ganando si el caller lo provee explicitamente.
-	const themeLogoUrl =
-		typeof resolvedThemeConfig?.logoUrl === "string" && resolvedThemeConfig.logoUrl.trim()
-			? resolvedThemeConfig.logoUrl.trim()
-			: null;
-	const effectiveLogoUrl = logoUrlProp ?? themeLogoUrl;
 
 	return (
 		<>

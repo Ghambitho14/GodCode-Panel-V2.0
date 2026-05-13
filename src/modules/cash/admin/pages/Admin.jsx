@@ -741,6 +741,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
                 orders={orders}
                 onSelectClient={handleSelectClient}
                 onClientCreated={() => loadData(true)}
+                onClientDeleted={() => loadData(true)}
                 showNotify={showNotify}
                 companyId={companyIdForClients}
               />

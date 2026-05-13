@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     Chart as ChartJS,
     CategoryScale, LinearScale, PointElement, LineElement, BarElement,
@@ -49,6 +49,7 @@ const TrendBadge = ({ value }) => {
     );
 };
 
+/** `orders` desde el panel sigue limitado a 100 filas (kanban). Los KPIs usan fetch propio vía `analyticsOrders`. */
 const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, selectedBranch }) => {
     const [filterPeriod, setFilterPeriod] = useState('7');
     const [chartTab, setChartTab] = useState('all');
@@ -60,8 +61,56 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     });
     const [exportLoading, setExportLoading] = useState(false);
+    /** Pedidos del rango para KPIs/gráficos (no el slice de 100 del provider). */
+    const [analyticsOrders, setAnalyticsOrders] = useState([]);
+    const [loadingAnalyticsOrders, setLoadingAnalyticsOrders] = useState(false);
 
     const days = filterPeriod === 'all' ? 365 : parseInt(filterPeriod);
+
+    useEffect(() => {
+        if (!companyId) return;
+        let cancelled = false;
+        setLoadingAnalyticsOrders(true);
+        (async () => {
+            try {
+                let q = supabase.from(TABLES.orders).select('*').eq('company_id', companyId);
+                if (filterPeriod !== 'all') {
+                    const cutoff = new Date();
+                    cutoff.setDate(cutoff.getDate() - days);
+                    q = q.gte('created_at', cutoff.toISOString());
+                }
+                if (selectedBranch?.id && selectedBranch.id !== 'all') {
+                    q = q.eq('branch_id', selectedBranch.id);
+                }
+                const { data, error } = await q.order('created_at', { ascending: false }).limit(5000);
+                if (cancelled) return;
+                if (error) throw error;
+                setAnalyticsOrders(data ?? []);
+            } catch (e) {
+                console.error('Error fetching analytics orders:', e);
+                if (!cancelled) setAnalyticsOrders([]);
+            } finally {
+                if (!cancelled) setLoadingAnalyticsOrders(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [companyId, selectedBranch?.id, days, filterPeriod]);
+
+    useEffect(() => {
+        if (!companyId) {
+            setAnalyticsOrders(Array.isArray(orders) ? orders : []);
+            setLoadingAnalyticsOrders(false);
+        }
+    }, [companyId, orders]);
+
+    const ordersForAnalytics = useMemo(() => {
+        if (loadingAnalyticsOrders && analyticsOrders.length === 0 && Array.isArray(orders) && orders.length > 0) {
+            return orders;
+        }
+        return analyticsOrders;
+    }, [loadingAnalyticsOrders, analyticsOrders, orders]);
 
     const getMonthRangeUtc = (yyyyMm) => {
         const [yearStr, monthStr] = String(yyyyMm).split('-');
@@ -142,55 +191,52 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
         }
     };
 
-    // --- FETCH EXPENSES ---
-    React.useEffect(() => {
+    /**
+     * Egresos de caja para analytics: solo movimientos `expense` manuales
+     * (`order_id` nulo). Las devoluciones de pedido usan el mismo tipo pero
+     * llevan `order_id` y no deben duplicarse con ventas ya excluidas por cancelación.
+     */
+    useEffect(() => {
         const fetchExpenses = async () => {
             setLoadingExpenses(true);
             try {
                 const now = new Date();
-                const cutoff = new Date();
+                const cutoff = new Date(now);
                 cutoff.setDate(now.getDate() - days);
-                
-                const prevCutoff = new Date();
-                prevCutoff.setDate(cutoff.getDate() - (days * 2)); // Queremos el periodo anterior completo
 
-                // Periodo actual
-                let query = supabase
-                    .from(TABLES.cash_movements)
-                    .select('amount, created_at')
-                    .eq('type', 'expense')
-                    .gte('created_at', cutoff.toISOString());
-                
-                // Si hay sucursales, filtrar? 
-                // AdminAnalytics recibe branches filtradas. 
-                // Los movimientos de caja tienen shift_id. No tienen branch_id directo?
-                // Revisemos useCashSystem: cash_shifts tiene branch_id.
-                
-                const { data: currentMovements, error: currentError } = await supabase
-                    .from(TABLES.cash_movements)
-                    .select(`
-                        amount, 
-                        created_at,
-                        ${TABLES.cash_shifts}!inner(branch_id)
-                    `)
-                    .eq('type', 'expense')
-                    .gte('created_at', cutoff.toISOString());
+                const prevCutoff = new Date(cutoff);
+                prevCutoff.setDate(prevCutoff.getDate() - days);
+
+                const baseExpenseQuery = () => {
+                    let q = supabase
+                        .from(TABLES.cash_movements)
+                        .select(`amount, created_at, ${TABLES.cash_shifts}!inner(branch_id, company_id)`)
+                        .eq('type', 'expense')
+                        .is('order_id', null);
+                    if (companyId) {
+                        q = q.eq(`${TABLES.cash_shifts}.company_id`, companyId);
+                    }
+                    if (selectedBranch?.id && selectedBranch.id !== 'all') {
+                        q = q.eq(`${TABLES.cash_shifts}.branch_id`, selectedBranch.id);
+                    }
+                    return q;
+                };
+
+                const { data: currentMovements, error: currentError } = await baseExpenseQuery().gte(
+                    'created_at',
+                    cutoff.toISOString(),
+                );
 
                 if (currentError) throw currentError;
 
-                // Periodo anterior
-                const { data: prevMovements, error: prevError } = await supabase
-                    .from(TABLES.cash_movements)
-                    .select(`
-                        amount, 
-                        created_at,
-                        ${TABLES.cash_shifts}!inner(branch_id)
-                    `)
-                    .eq('type', 'expense')
-                    .gte('created_at', prevCutoff.toISOString())
-                    .lt('created_at', cutoff.toISOString());
-
-                if (prevError) throw prevError;
+                let prevMovements = [];
+                if (filterPeriod !== 'all') {
+                    const { data: prevData, error: prevError } = await baseExpenseQuery()
+                        .gte('created_at', prevCutoff.toISOString())
+                        .lt('created_at', cutoff.toISOString());
+                    if (prevError) throw prevError;
+                    prevMovements = prevData || [];
+                }
 
                 const total = (currentMovements || []).reduce((acc, m) => acc + (Number(m.amount) || 0), 0);
                 const prevTotal = (prevMovements || []).reduce((acc, m) => acc + (Number(m.amount) || 0), 0);
@@ -205,11 +251,11 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
         };
 
         fetchExpenses();
-    }, [days]);
+    }, [days, filterPeriod, companyId, selectedBranch?.id]);
 
     // --- CORE DATA ---
     const { chartData, kpis, trends, paymentBreakdown, branchStats } = useMemo(() => {
-        if (!orders || orders.length === 0) {
+        if (!ordersForAnalytics || ordersForAnalytics.length === 0) {
             return {
                 chartData: { labels: [], datasets: [] },
                 kpis: { total: 0, count: 0, ticket: 0, deliveryTotal: 0, deliveryCount: 0, net: -(expensesData.total || 0) },
@@ -219,11 +265,11 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
             };
         }
         const now = new Date();
-        const cutoff = new Date();
+        const cutoff = new Date(now);
         cutoff.setDate(now.getDate() - days);
-        
-        const prevCutoff = new Date();
-        prevCutoff.setDate(cutoff.getDate() - days);
+
+        const prevCutoff = new Date(cutoff);
+        prevCutoff.setDate(prevCutoff.getDate() - days);
 
         const filterByTab = (o) => {
             if (chartTab === 'all') return true;
@@ -232,7 +278,7 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
             return true;
         };
 
-        const valid = orders.filter(o => o.status !== 'cancelled');
+        const valid = ordersForAnalytics.filter(o => o.status !== 'cancelled');
         
         // [FIX] Crear Set de IDs válidos para filtrar órdenes huérfanas ("Sin asignar")
         const validBranchIds = new Set((branches || []).map(b => b.id));
@@ -382,7 +428,7 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
             paymentBreakdown: pb,
             branchStats: sortedBranches
         };
-    }, [orders, filterPeriod, chartTab, days, branches, expensesData]);
+    }, [ordersForAnalytics, filterPeriod, chartTab, days, branches, expensesData]);
 
     const chartRenderData = useMemo(() => {
         const base = chartData;
@@ -450,9 +496,9 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
 
     // --- TOP 5 PRODUCTS ---
     const topProducts = useMemo(() => {
-        if (!orders) return [];
+        if (!ordersForAnalytics) return [];
         const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
-        const filtered = orders.filter(o => o.status !== 'cancelled' && (filterPeriod === 'all' || new Date(o.created_at) >= cutoff));
+        const filtered = ordersForAnalytics.filter(o => o.status !== 'cancelled' && (filterPeriod === 'all' || new Date(o.created_at) >= cutoff));
         
         const counts = {};
         const revenue = {};
@@ -471,15 +517,15 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5)
             .map(([name, qty]) => ({ name, qty, revenue: revenue[name] || 0 }));
-    }, [orders, filterPeriod, days]);
+    }, [ordersForAnalytics, filterPeriod, days]);
 
     // --- PEAK HOUR ---
     const peakHour = useMemo(() => {
-        if (!orders || orders.length === 0) return null;
+        if (!ordersForAnalytics || ordersForAnalytics.length === 0) return null;
         const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
         
         const hourCounts = {};
-        orders.filter(o => o.status !== 'cancelled' && (filterPeriod === 'all' || new Date(o.created_at) >= cutoff))
+        ordersForAnalytics.filter(o => o.status !== 'cancelled' && (filterPeriod === 'all' || new Date(o.created_at) >= cutoff))
             .forEach(o => {
                 const h = new Date(o.created_at).getHours();
                 hourCounts[h] = (hourCounts[h] || 0) + 1;
@@ -490,7 +536,7 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
         
         const h = parseInt(sorted[0][0]);
         return { hour: `${h}:00 - ${h + 1}:00`, count: sorted[0][1] };
-    }, [orders, filterPeriod, days]);
+    }, [ordersForAnalytics, filterPeriod, days]);
 
 
     const chartOptions = {
@@ -546,6 +592,7 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                     <div className="rpt-kpi-body">
                         <span className="rpt-kpi-label">Ventas totales</span>
                         <span className="rpt-kpi-value">{fmt(kpis.total)}</span>
+                        {loadingAnalyticsOrders && <span className="rpt-kpi-meta">Cargando pedidos…</span>}
                     </div>
                     <TrendBadge value={trends.total} />
                 </div>

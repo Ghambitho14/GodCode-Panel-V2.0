@@ -623,6 +623,24 @@
 	background: var(--admin-icon-bg, #f0f2f6);
 }
 
+.admin-layout .clients-kebab-menu__item:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+	pointer-events: none;
+}
+
+.admin-layout .clients-kebab-menu__item--danger {
+	color: #dc2626;
+}
+
+.admin-layout .clients-kebab-menu__item--danger .clients-kebab-menu__icon {
+	color: #dc2626;
+}
+
+.admin-layout .clients-kebab-menu__item--danger:hover:not(:disabled) {
+	background: #fef2f2;
+}
+
 .admin-layout .clients-kebab-menu__icon {
 	flex-shrink: 0;
 	color: var(--admin-text-muted, #64748b);
