@@ -25,7 +25,31 @@ function resolveConfig(): { url: string; anonKey: string } {
   throw new Error(CONFIG_WARN);
 }
 
+/** Quita sesiones Supabase viejas en localStorage (migración a sessionStorage). */
+function clearLegacyAuthLocalStorage(): void {
+  if (typeof window === "undefined") return;
+  try {
+    for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
+      const key = window.localStorage.key(i);
+      if (key?.startsWith("sb-") && key.includes("auth-token")) {
+        window.localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+clearLegacyAuthLocalStorage();
+
 const { url, anonKey } = resolveConfig();
 
-/** Shared browser Supabase client (Vite). */
-export const supabase: SupabaseClient = createClient(url, anonKey);
+/** Shared browser Supabase client (Vite). Session expires when the browser tab/window closes. */
+export const supabase: SupabaseClient = createClient(url, anonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: typeof window !== "undefined" ? window.sessionStorage : undefined,
+  },
+});

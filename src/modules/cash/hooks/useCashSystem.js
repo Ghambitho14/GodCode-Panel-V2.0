@@ -2,6 +2,15 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase, TABLES } from '@/integrations/supabase';
 import { isValidBranchId } from '@/shared/utils/safeIds';
 import { cashService } from '../services/cashService';
+import {
+	isManualLocalExpense,
+	isCashWithdrawal,
+	isOperatingLocalExpense,
+	EXPENSE_KIND_CASH_WITHDRAWAL,
+	EXPENSE_KIND_OPERATING,
+} from '../utils/cashMovementKinds';
+import { getExpectedByMethod } from '../utils/shiftCloseReconciliation';
+import { getCashMovementPaymentMethod } from '@/shared/utils/orderUtils';
 
 export const useCashSystem = (showNotify, branchId) => {
     const [activeShift, setActiveShift] = useState(null);
@@ -142,33 +151,107 @@ export const useCashSystem = (showNotify, branchId) => {
         }
     }, [branchId, showNotify]);
 
+    const getTotals = useCallback((movementsData = movements) => {
+        return movementsData.reduce((acc, m) => {
+            if (m.type === 'cancel') return acc;
+            const amount = Number(m.amount) || 0;
+            const order = m?.orders ?? null;
+            const deliveryFee = Number(order?.delivery_fee) || 0;
+            const desc = String(m?.description || '').toLowerCase();
+            const isCourierPayout =
+                m.type === 'expense' &&
+                !order &&
+                (desc.includes('delivery') || desc.includes('repartidor') || desc.includes('conductor'));
+
+            if (m.type === 'expense') {
+                acc.expenses += amount;
+                if (isManualLocalExpense(m)) {
+                    acc.manualExpenses += amount;
+                    acc.manualExpenseCount += 1;
+                    if (isCashWithdrawal(m)) {
+                        acc.cashWithdrawals += amount;
+                        acc.cashWithdrawalCount += 1;
+                    } else if (isOperatingLocalExpense(m)) {
+                        acc.operatingExpenses += amount;
+                        acc.operatingExpenseCount += 1;
+                    }
+                } else {
+                    acc.refundExpenses += amount;
+                    acc.refundExpenseCount += 1;
+                }
+                if (m.payment_method === 'cash') acc.cash -= amount;
+                else if (m.payment_method === 'card') acc.card -= amount;
+                else if (m.payment_method === 'online') acc.online -= amount;
+
+                if (deliveryFee > 0) {
+                    acc.deliveryRefunded += deliveryFee;
+                }
+                if (isCourierPayout) {
+                    acc.deliveryPaidToCourier += amount;
+                }
+                const refundOrderId = m.order_id ?? m.orderId;
+                if (refundOrderId != null && String(refundOrderId).trim() !== '') {
+                    acc.income -= amount;
+                }
+            } else {
+                if (m.payment_method === 'cash') acc.cash += amount;
+                else if (m.payment_method === 'card') acc.card += amount;
+                else if (m.payment_method === 'online') acc.online += amount;
+                acc.income += amount;
+
+                if (m.type === 'sale' && deliveryFee > 0) {
+                    acc.deliveryCollected += deliveryFee;
+                }
+            }
+            return acc;
+        }, {
+            cash: 0,
+            card: 0,
+            online: 0,
+            expenses: 0,
+            manualExpenses: 0,
+            manualExpenseCount: 0,
+            cashWithdrawals: 0,
+            cashWithdrawalCount: 0,
+            operatingExpenses: 0,
+            operatingExpenseCount: 0,
+            refundExpenses: 0,
+            refundExpenseCount: 0,
+            income: 0,
+            deliveryCollected: 0,
+            deliveryRefunded: 0,
+            deliveryPaidToCourier: 0,
+        });
+    }, [movements]);
+
     /**
-     * Cierra el turno actual
+     * Cierra el turno actual con cuadre por método.
+     * @param {{ cash: number; card: number; online: number }} payload
      */
-    const closeShift = useCallback(async (actualBalance) => {
+    const closeShift = useCallback(async (payload) => {
         if (!activeShift) return false;
         try {
-            const { error } = await supabase
-                .from(TABLES.cash_shifts)
-                .update({
-                    actual_balance: actualBalance,
-                    closed_at: new Date().toISOString(),
-                    status: 'closed'
-                })
-                .eq('id', activeShift.id)
-                .eq('status', 'open');
-
-            if (error) throw error;
+            const totals = getTotals(movements);
+            const expected = getExpectedByMethod(totals, activeShift);
+            await cashService.closeShift(activeShift.id, {
+                cash: Number(payload.cash),
+                card: Number(payload.card),
+                online: Number(payload.online),
+                expectedCard: expected.card,
+                expectedOnline: expected.online,
+            });
 
             setActiveShift(null);
             setMovements([]);
             if (showNotify) showNotify('Caja cerrada correctamente');
             return true;
-        } catch {
-            if (showNotify) showNotify('Error al cerrar caja', 'error');
+        } catch (err) {
+            if (showNotify) {
+                showNotify(err?.message || 'Error al cerrar caja', 'error');
+            }
             return false;
         }
-    }, [activeShift, showNotify]);
+    }, [activeShift, movements, getTotals, showNotify]);
 
     /**
      * [MEJORA MULTI-NEGOCIO]
@@ -197,7 +280,7 @@ export const useCashSystem = (showNotify, branchId) => {
     /**
      * Agrega un movimiento manual (Ingreso/Egreso)
      */
-    const addManualMovement = useCallback(async (type, amount, description, paymentMethod = 'cash') => {
+    const addManualMovement = useCallback(async (type, amount, description, paymentMethod = 'cash', opts = {}) => {
         if (!activeShift) return false;
         try {
             const numericAmount = Number(amount);
@@ -208,18 +291,41 @@ export const useCashSystem = (showNotify, branchId) => {
                 throw new Error("Es obligatorio indicar el motivo del egreso (mínimo 3 letras).");
             }
 
-            const { error } = await supabase.rpc('cash_add_movement', {
+            const expenseKind =
+                type === 'expense' && opts?.expenseKind != null && String(opts.expenseKind).trim() !== ''
+                    ? String(opts.expenseKind).trim()
+                    : null;
+
+            if (expenseKind === EXPENSE_KIND_CASH_WITHDRAWAL && paymentMethod !== 'cash') {
+                throw new Error('Los retiros de efectivo solo pueden registrarse en efectivo.');
+            }
+
+            const rpcPayload = {
                 p_shift_id: activeShift.id,
                 p_type: type,
                 p_amount: numericAmount,
                 p_description: description,
                 p_payment_method: paymentMethod,
-                p_order_id: null
-            });
+                p_order_id: null,
+            };
+            if (expenseKind) {
+                rpcPayload.p_expense_kind = expenseKind;
+            }
+
+            const { error } = await supabase.rpc('cash_add_movement', rpcPayload);
             if (error) throw error;
             
             await loadActiveShift();
-            if (showNotify) showNotify(type === 'income' ? 'Ingreso registrado' : 'Egreso registrado');
+            if (showNotify) {
+                const custom = opts && typeof opts.successMessage === 'string' && opts.successMessage.trim() !== '';
+                showNotify(
+                    custom
+                        ? opts.successMessage.trim()
+                        : type === 'income'
+                          ? 'Ingreso registrado'
+                          : 'Egreso registrado'
+                );
+            }
             return true;
         } catch (error) {
             if (showNotify) {
@@ -249,14 +355,17 @@ export const useCashSystem = (showNotify, branchId) => {
             // Esto permite manejar casos de: Venta -> Cancelación -> Venta (Re-ingreso)
             const { data: movements } = await supabase
                 .from(TABLES.cash_movements)
-                .select('type, amount')
+                .select('type, amount, payment_method')
                 .eq('shift_id', targetShift.id)
                 .eq('order_id', order.id);
 
             const saleAmount = Math.round(Number(order.total) || 0);
             if (saleAmount <= 0) return false; // No registrar ventas de valor 0 o inválidas
 
-            const currentNet = (movements || []).reduce((acc, m) => acc + (m.type === 'sale' ? m.amount : -m.amount), 0);
+            const currentNet = (movements || []).reduce(
+                (acc, m) => acc + (m.type === 'sale' ? Number(m.amount) || 0 : -(Number(m.amount) || 0)),
+                0,
+            );
 
             // Si el balance neto ya es igual al total (o muy cercano), ya está registrada.
             if (Math.abs(currentNet - saleAmount) < 5) return true;
@@ -266,7 +375,7 @@ export const useCashSystem = (showNotify, branchId) => {
                 type: 'sale',
                 amount: saleAmount,
                 description: `Venta #${String(order.id).slice(-4)} - ${order.client_name}`,
-                payment_method: order.payment_type === 'online' ? 'online' : (order.payment_type === 'tarjeta' ? 'card' : 'cash'),
+                payment_method: getCashMovementPaymentMethod(order, movements || []),
                 order_id: order.id
             };
 
@@ -306,24 +415,27 @@ export const useCashSystem = (showNotify, branchId) => {
             // [MEJORA ROBUSTEZ] Verificar si ya está reembolsada (Neto ~ 0)
             const { data: movements } = await supabase
                 .from(TABLES.cash_movements)
-                .select('type, amount')
+                .select('type, amount, payment_method')
                 .eq('shift_id', targetShift.id)
                 .eq('order_id', order.id);
 
-            const refundAmount = Math.round(Number(order.total) || 0);
-            if (refundAmount <= 0) return false;
+            const currentNet = (movements || []).reduce(
+                (acc, m) => acc + (m.type === 'sale' ? Number(m.amount) || 0 : -(Number(m.amount) || 0)),
+                0,
+            );
 
-            const currentNet = (movements || []).reduce((acc, m) => acc + (m.type === 'sale' ? m.amount : -m.amount), 0);
-            
             // Si el balance neto es 0 (o negativo), ya está reembolsada o nunca se cobró.
             if (currentNet <= 5) return true;
+
+            const refundAmount = Math.round(currentNet);
+            if (refundAmount <= 0) return true;
 
             const movement = {
                 shift_id: targetShift.id,
                 type: 'expense',
                 amount: refundAmount,
                 description: `Devolución #${String(order.id).slice(-4)} - ${order.client_name}`,
-                payment_method: order.payment_type === 'online' ? 'online' : (order.payment_type === 'tarjeta' ? 'card' : 'cash'),
+                payment_method: getCashMovementPaymentMethod(order, movements || []),
                 order_id: order.id
             };
 
@@ -381,95 +493,12 @@ export const useCashSystem = (showNotify, branchId) => {
             return { ...shift, total_online: totalOnline, orders_count: ordersCount };
         });
 
-        // #region agent log
-        try {
-            fetch('http://127.0.0.1:7461/ingest/e68a46d1-59e8-49d9-bde5-733f5c55d988', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '502478' },
-                body: JSON.stringify({
-                    sessionId: '502478',
-                    runId: 'post-fix-cancelled-filter',
-                    hypothesisId: 'H1',
-                    location: 'useCashSystem.js:getPastShifts',
-                    message: 'getPastShifts result snapshot (cancelled excluded from count)',
-                    data: {
-                        branchId,
-                        shifts: result.slice(0, 5).map(s => ({
-                            id: s.id,
-                            opened_at: s.opened_at,
-                            closed_at: s.closed_at,
-                            orders_count: s.orders_count,
-                            embed_raw: s.orders,
-                        })),
-                    },
-                    timestamp: Date.now(),
-                }),
-            }).catch(() => {});
-        } catch (e) { void e; }
-        // #endregion
-
         return result;
     }, [branchId]);
 
     const getShiftMovements = useCallback(async (shiftId) => {
         return cashService.getShiftMovements(shiftId);
     }, []);
-
-    const getTotals = useCallback((movementsData = movements) => {
-        return movementsData.reduce((acc, m) => {
-            if (m.type === 'cancel') return acc;
-            const amount = Number(m.amount) || 0;
-            const order = m?.orders ?? null;
-            const deliveryFee = Number(order?.delivery_fee) || 0;
-            const desc = String(m?.description || '').toLowerCase();
-            const isCourierPayout =
-                m.type === 'expense' &&
-                !order &&
-                (desc.includes('delivery') || desc.includes('repartidor') || desc.includes('conductor'));
-
-            if (m.type === 'expense') {
-                acc.expenses += amount;
-                // [FIX] Restar egresos del balance del método de pago correspondiente
-                if (m.payment_method === 'cash') acc.cash -= amount;
-                else if (m.payment_method === 'card') acc.card -= amount;
-                else if (m.payment_method === 'online') acc.online -= amount;
-
-                if (deliveryFee > 0) {
-                    // Devolución/cancelación vinculada a pedido con delivery.
-                    acc.deliveryRefunded += deliveryFee;
-                }
-                if (isCourierPayout) {
-                    acc.deliveryPaidToCourier += amount;
-                }
-                // Devolución de venta (`registerRefund`): la venta sigue contada como `sale`
-                // en ingresos; restamos aquí para que el KPI "Ingresos" refleje efectivo neto
-                // que quedó por ventas (esa plata ya salió de caja).
-                const refundOrderId = m.order_id ?? m.orderId;
-                if (refundOrderId != null && String(refundOrderId).trim() !== '') {
-                    acc.income -= amount;
-                }
-            } else {
-                if (m.payment_method === 'cash') acc.cash += amount;
-                else if (m.payment_method === 'card') acc.card += amount;
-                else if (m.payment_method === 'online') acc.online += amount;
-                acc.income += amount; // Total Ingresos (Bruto)
-
-                if (m.type === 'sale' && deliveryFee > 0) {
-                    acc.deliveryCollected += deliveryFee;
-                }
-            }
-            return acc;
-        }, {
-            cash: 0,
-            card: 0,
-            online: 0,
-            expenses: 0,
-            income: 0,
-            deliveryCollected: 0,
-            deliveryRefunded: 0,
-            deliveryPaidToCourier: 0,
-        });
-    }, [movements]);
 
     // Memoizar el objeto de retorno para evitar re-renderizados infinitos en consumidores
     return useMemo(() => ({

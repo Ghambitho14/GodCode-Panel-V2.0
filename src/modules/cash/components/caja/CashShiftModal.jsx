@@ -1,41 +1,171 @@
-import React, { useState, useEffect } from 'react';
-import { X, Lock, Unlock, Calculator, AlertTriangle } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { X, Lock, Unlock, AlertTriangle, CheckCircle2, Clock, DollarSign, CreditCard, Smartphone, ChevronDown, ChevronUp } from 'lucide-react';
+import { formatCurrency } from '@/shared/utils/formatters';
+import {
+    getExpectedByMethod,
+    diffCounted,
+    buildShiftSalesRows,
+    buildShiftOtherMovementRows,
+} from '../../utils/shiftCloseReconciliation';
+import { useLockBodyScroll } from '@/shared/hooks/useLockBodyScroll';
 
-const CashShiftModal = ({ isOpen, onClose, type, onConfirm, activeShift }) => {
+const fmt = (n) => {
+    try {
+        return formatCurrency(n);
+    } catch {
+        return `$${(n || 0).toLocaleString('es-CL')}`;
+    }
+};
+
+function formatShiftDuration(openedAt) {
+    if (!openedAt) return '—';
+    const ms = Date.now() - new Date(openedAt).getTime();
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    return h > 0 ? `${h} h ${m} min` : `${m} min`;
+}
+
+function DiffBadge({ expected, counted }) {
+    const { diff, status } = diffCounted(expected, counted);
+    if (status === 'match') {
+        return (
+            <span className="cash-shift-close-diff cash-shift-close-diff--match">
+                <CheckCircle2 size={14} aria-hidden />
+                Cuadrado
+            </span>
+        );
+    }
+    const isSurplus = status === 'surplus';
+    return (
+        <span className={`cash-shift-close-diff cash-shift-close-diff--${status}`}>
+            <AlertTriangle size={14} aria-hidden />
+            {isSurplus ? 'Sobrante' : 'Faltante'}: {fmt(Math.abs(diff))}
+        </span>
+    );
+}
+
+function MethodCountRow({ id, label, Icon, expected, value, onChange }) {
+    const counted = parseFloat(value);
+    const hasValue = value !== '' && !Number.isNaN(counted) && counted >= 0;
+    return (
+        <div className="cash-shift-close-method">
+            <div className="cash-shift-close-method__head">
+                <span className="cash-shift-close-method__label">
+                    <Icon size={16} strokeWidth={1.75} aria-hidden />
+                    {label}
+                </span>
+                <span className="cash-shift-close-method__expected">
+                    Esperado: <strong>{fmt(expected)}</strong>
+                </span>
+            </div>
+            <div className="cash-shift-close-method__input-wrap">
+                <span className="cash-shift-modal__currency" aria-hidden>$</span>
+                <input
+                    id={id}
+                    type="number"
+                    min="0"
+                    step="1"
+                    className="form-input cash-shift-close-method__input"
+                    placeholder="0"
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                />
+            </div>
+            {hasValue ? <DiffBadge expected={expected} counted={counted} /> : null}
+        </div>
+    );
+}
+
+const CashShiftModal = ({ isOpen, onClose, type, onConfirm, activeShift, movements = [], getTotals }) => {
     const [amount, setAmount] = useState('');
+    const [countedCash, setCountedCash] = useState('');
+    const [countedCard, setCountedCard] = useState('');
+    const [countedOnline, setCountedOnline] = useState('');
     const [error, setError] = useState('');
+    const [showOtherMovements, setShowOtherMovements] = useState(false);
+
+    const isOpening = type === 'open';
+
+    const totals = useMemo(() => {
+        if (isOpening || !getTotals) return null;
+        return getTotals(movements);
+    }, [isOpening, getTotals, movements]);
+
+    const expectedByMethod = useMemo(() => {
+        if (!totals || !activeShift) return { cash: 0, card: 0, online: 0 };
+        return getExpectedByMethod(totals, activeShift);
+    }, [totals, activeShift]);
+
+    const salesRows = useMemo(() => buildShiftSalesRows(movements), [movements]);
+    const otherRows = useMemo(() => buildShiftOtherMovementRows(movements), [movements]);
 
     useEffect(() => {
         if (isOpen) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setAmount('');
+            setCountedCash('');
+            setCountedCard('');
+            setCountedOnline('');
             setError('');
+            setShowOtherMovements(false);
         }
     }, [isOpen]);
 
+    useLockBodyScroll(isOpen);
+
     if (!isOpen) return null;
+
+    const parseNonNegative = (val) => {
+        const n = parseFloat(val);
+        if (Number.isNaN(n) || n < 0) return null;
+        return n;
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        const numAmount = parseFloat(amount);
-        
-        if (isNaN(numAmount) || numAmount < 0) {
-            setError('Ingresa un monto válido');
+        if (isOpening) {
+            const numAmount = parseFloat(amount);
+            if (Number.isNaN(numAmount) || numAmount < 0) {
+                setError('Ingresa un monto válido');
+                return;
+            }
+            onConfirm(numAmount);
+            onClose();
             return;
         }
 
-        onConfirm(numAmount);
+        const cash = parseNonNegative(countedCash);
+        const card = parseNonNegative(countedCard);
+        const online = parseNonNegative(countedOnline);
+        if (cash === null) {
+            setError('Ingresa el efectivo físico contado');
+            return;
+        }
+        if (card === null || online === null) {
+            setError('Ingresa montos válidos para tarjeta y transferencia (pueden ser 0)');
+            return;
+        }
+        setError('');
+        onConfirm({ cash, card, online });
         onClose();
     };
 
-    const isOpening = type === 'open';
+    const cashNum = parseFloat(countedCash);
+    const canClose =
+        countedCash !== '' &&
+        !Number.isNaN(cashNum) &&
+        cashNum >= 0 &&
+        countedCard !== '' &&
+        !Number.isNaN(parseFloat(countedCard)) &&
+        parseFloat(countedCard) >= 0 &&
+        countedOnline !== '' &&
+        !Number.isNaN(parseFloat(countedOnline)) &&
+        parseFloat(countedOnline) >= 0;
 
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div
-                className="modal-content cash-shift-modal"
-                style={{ maxWidth: 400 }}
-                onClick={e => e.stopPropagation()}
+                className={`modal-content cash-shift-modal${!isOpening ? ' cash-shift-modal--close' : ''}`}
+                onClick={(e) => e.stopPropagation()}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="cash-shift-modal-title"
@@ -60,72 +190,172 @@ const CashShiftModal = ({ isOpen, onClose, type, onConfirm, activeShift }) => {
                 </header>
 
                 <form onSubmit={handleSubmit} className="cash-shift-modal__form">
-                    <div className="modal-form">
-                        <p className="cash-shift-modal__lead">
-                            {isOpening 
-                                ? 'Ingresa el monto inicial con el que empiezas el turno (Base de caja).'
-                                : 'Ingresa el monto total de efectivo físico que hay en la caja al finalizar el turno.'}
-                        </p>
-
-                        {!isOpening && activeShift && (
-                            <div className="cash-shift-modal__expected">
-                                <div className="cash-shift-modal__expected-row">
-                                    <span className="cash-shift-modal__expected-label">Efectivo esperado</span>
-                                    <span className="cash-shift-modal__expected-value">${activeShift.expected_balance.toLocaleString('es-CL')}</span>
-                                </div>
-                                <p className="cash-shift-modal__expected-hint">
-                                    Base más ingresos en efectivo menos egresos en efectivo.
+                    <div className="modal-form cash-shift-modal__body">
+                        {isOpening ? (
+                            <>
+                                <p className="cash-shift-modal__lead">
+                                    Ingresa el monto inicial con el que empiezas el turno (base de caja).
                                 </p>
-                            </div>
+                                <div className="form-group">
+                                    <label htmlFor="cash-shift-open-amount">Monto inicial</label>
+                                    <div className="cash-shift-close-method__input-wrap">
+                                        <span className="cash-shift-modal__currency" aria-hidden>$</span>
+                                        <input
+                                            id="cash-shift-open-amount"
+                                            type="number"
+                                            className="form-input cash-shift-close-method__input"
+                                            placeholder="0"
+                                            autoFocus
+                                            value={amount}
+                                            onChange={(e) => setAmount(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <p className="cash-shift-modal__lead">
+                                    Cuadra efectivo, tarjeta (punto) y transferencias con lo registrado en el turno antes de cerrar.
+                                </p>
+
+                                {activeShift ? (
+                                    <div className="cash-shift-close-summary">
+                                        <div className="cash-shift-close-summary__item">
+                                            <Clock size={14} aria-hidden />
+                                            <span>
+                                                Abierto{' '}
+                                                {new Date(activeShift.opened_at).toLocaleString('es-CL', {
+                                                    dateStyle: 'short',
+                                                    timeStyle: 'short',
+                                                })}
+                                            </span>
+                                        </div>
+                                        <div className="cash-shift-close-summary__item">
+                                            <span>Base: {fmt(activeShift.opening_balance || 0)}</span>
+                                        </div>
+                                        <div className="cash-shift-close-summary__item">
+                                            <span>Duración: {formatShiftDuration(activeShift.opened_at)}</span>
+                                        </div>
+                                    </div>
+                                ) : null}
+
+                                <h4 className="cash-shift-close-section-title">Cuadre por método</h4>
+                                <div className="cash-shift-close-methods">
+                                    <MethodCountRow
+                                        id="counted-cash"
+                                        label="Efectivo físico"
+                                        Icon={DollarSign}
+                                        expected={expectedByMethod.cash}
+                                        value={countedCash}
+                                        onChange={setCountedCash}
+                                    />
+                                    <MethodCountRow
+                                        id="counted-card"
+                                        label="Tarjeta (punto)"
+                                        Icon={CreditCard}
+                                        expected={expectedByMethod.card}
+                                        value={countedCard}
+                                        onChange={setCountedCard}
+                                    />
+                                    <MethodCountRow
+                                        id="counted-online"
+                                        label="Transferencia"
+                                        Icon={Smartphone}
+                                        expected={expectedByMethod.online}
+                                        value={countedOnline}
+                                        onChange={setCountedOnline}
+                                    />
+                                </div>
+
+                                <h4 className="cash-shift-close-section-title">
+                                    Ventas del turno ({salesRows.length})
+                                </h4>
+                                <div className="cash-shift-close-sales-scroll">
+                                    {salesRows.length === 0 ? (
+                                        <p className="cash-shift-close-empty">Sin ventas registradas en este turno.</p>
+                                    ) : (
+                                        <table className="cash-movements-table cash-shift-close-sales-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Fecha / hora</th>
+                                                    <th>Pedido</th>
+                                                    <th>Método</th>
+                                                    <th className="cash-shift-close-sales-table__num">Monto</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {salesRows.map((row) => (
+                                                    <tr key={row.id}>
+                                                        <td className="cash-shift-close-sales-table__time">
+                                                            {new Date(row.at).toLocaleString('es-CL', {
+                                                                dateStyle: 'short',
+                                                                timeStyle: 'short',
+                                                            })}
+                                                        </td>
+                                                        <td>{row.label}</td>
+                                                        <td>{row.methodLabel}</td>
+                                                        <td className="cash-shift-close-sales-table__num">{fmt(row.amount)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </div>
+
+                                {otherRows.length > 0 ? (
+                                    <div className="cash-shift-close-other">
+                                        <button
+                                            type="button"
+                                            className="cash-shift-close-other-toggle"
+                                            onClick={() => setShowOtherMovements((v) => !v)}
+                                        >
+                                            {showOtherMovements ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                            Otros movimientos ({otherRows.length})
+                                        </button>
+                                        {showOtherMovements ? (
+                                            <ul className="cash-shift-close-other-list">
+                                                {otherRows.map((row) => (
+                                                    <li key={row.id}>
+                                                        <span className="cash-shift-close-other-list__time">
+                                                            {new Date(row.at).toLocaleTimeString('es-CL', {
+                                                                hour: '2-digit',
+                                                                minute: '2-digit',
+                                                            })}
+                                                        </span>
+                                                        <span>{row.label}</span>
+                                                        <span className="cash-shift-close-other-list__method">{row.methodLabel}</span>
+                                                        <span className="cash-shift-close-other-list__amount">{fmt(row.amount)}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : null}
+                                    </div>
+                                ) : null}
+                            </>
                         )}
 
-                        <div className="form-group">
-                            <label>{isOpening ? 'Monto Inicial' : 'Total Efectivo Físico'}</label>
-                            <div style={{ position: 'relative' }}>
-                                <span className="cash-shift-modal__currency" aria-hidden>$</span>
-                                <input
-                                    type="number"
-                                    className="form-input"
-                                    style={{ paddingLeft: 30 }}
-                                    placeholder="0"
-                                    autoFocus
-                                    value={amount}
-                                    onChange={(e) => setAmount(e.target.value)}
-                                    required
-                                />
-                            </div>
-                            {error && <span style={{ color: '#e63946', fontSize: '0.8rem', marginTop: 5, display: 'block' }}>{error}</span>}
-                        </div>
-
-                        {!isOpening && amount && (
-                            <div className="animate-fade cash-shift-modal__diff">
-                                {parseFloat(amount) === activeShift?.expected_balance ? (
-                                    <div style={{ color: '#25d366', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <Calculator size={16} /> <span>Caja cuadrada perfectamente</span>
-                                    </div>
-                                ) : (
-                                    <div style={{ 
-                                        color: parseFloat(amount) > activeShift?.expected_balance ? '#25d366' : '#f4a261', 
-                                        fontSize: '0.85rem', 
-                                        display: 'flex', 
-                                        alignItems: 'center', 
-                                        gap: 8 
-                                    }}>
-                                        <AlertTriangle size={16} /> 
-                                        <span>
-                                            {parseFloat(amount) > activeShift?.expected_balance ? 'Sobrante: ' : 'Faltante: '}
-                                            ${ Math.abs(parseFloat(amount) - activeShift?.expected_balance).toLocaleString('es-CL') }
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                        {error ? <p className="cash-shift-modal__error">{error}</p> : null}
                     </div>
 
-                    <div style={{ marginTop: 30, display: 'flex', gap: 10 }}>
-                        <button type="button" onClick={onClose} className="btn btn-secondary" style={{ flex: 1 }}>Cancelar</button>
-                        <button type="submit" className={`btn ${isOpening ? 'btn-primary' : 'btn-danger'}`} style={{ flex: 1 }}>
-                            {isOpening ? 'Abrir Caja' : 'Cerrar Turno'}
+                    <div className="cash-shift-modal__footer">
+                        <button type="button" onClick={onClose} className="btn btn-secondary">
+                            Cancelar
+                        </button>
+                        <button
+                            type="submit"
+                            className={`btn ${isOpening ? 'btn-primary' : 'btn-danger'}`}
+                            disabled={!isOpening && !canClose}
+                        >
+                            {isOpening ? (
+                                <>
+                                    <Unlock size={16} aria-hidden /> Abrir caja
+                                </>
+                            ) : (
+                                <>
+                                    <Lock size={16} aria-hidden /> Cerrar turno
+                                </>
+                            )}
                         </button>
                     </div>
                 </form>

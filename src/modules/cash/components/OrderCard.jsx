@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Clock, XCircle, Upload, ImageIcon, Printer, Edit2, Copy, Send, ChefHat, Banknote } from 'lucide-react';
+import { Clock, XCircle, Upload, ImageIcon, Printer, Edit2, Copy, Send, ChefHat, Banknote, Eye } from 'lucide-react';
+import OrderDetailModal from './OrderDetailModal';
 import { formatTimeElapsed } from '@/shared/utils/formatters';
 import {
     buildOrderWhatsAppShareText,
@@ -10,12 +11,17 @@ import {
     orderDeliveryKanbanSubtitle,
 } from '@/shared/utils/orderUtils';
 import { printOrderTicket } from '@/modules/cash/admin/utils/receiptPrinting';
-import OrderEditModal from './OrderEditModal';
+import ManualOrderModal from './ManualOrderModal';
+import OrderEditMenu from './manual-order/OrderEditMenu';
 
 const OrderCard = ({ order, queueIndex, moveOrder, setReceiptModalOrder, branch, clients, logoUrl, companyName, showNotify, products, categories, onOrderSaved }) => {
-    const [editOpen, setEditOpen] = useState(false);
+    const [editMenuOpen, setEditMenuOpen] = useState(false);
+    const [editWizardOpen, setEditWizardOpen] = useState(false);
+    const [editInitialStep, setEditInitialStep] = useState(1);
     const [ticketMenuOpen, setTicketMenuOpen] = useState(false);
+    const [detailOpen, setDetailOpen] = useState(false);
     const ticketMenuRef = useRef(null);
+    const editMenuRef = useRef(null);
     const isDelivery = isOrderDelivery(order);
     const deliverySubtitle = isDelivery ? orderDeliveryKanbanSubtitle(order) : '';
     // `companyName` se inyecta al header (h1) del ticket cliente. La sucursal
@@ -36,11 +42,31 @@ const OrderCard = ({ order, queueIndex, moveOrder, setReceiptModalOrder, branch,
         return () => document.removeEventListener('mousedown', onDown);
     }, [ticketMenuOpen]);
 
+    useEffect(() => {
+        if (!editMenuOpen) return;
+        const onDown = (ev) => {
+            const el = editMenuRef.current;
+            if (el && !el.contains(ev.target)) setEditMenuOpen(false);
+        };
+        document.addEventListener('mousedown', onDown);
+        return () => document.removeEventListener('mousedown', onDown);
+    }, [editMenuOpen]);
+
     /** Ticket cocina: al pasar a cocina (también reimprimir desde el menú si falló la impresora). */
     const handleMoveToKitchen = (e) => {
         e.stopPropagation();
         printOrderTicket(order, branch?.name, logoUrl ?? null, ticketPrintOpts('kitchen'));
         moveOrder(order.id, 'active');
+    };
+
+    const handleCancelOrder = (e) => {
+        e?.stopPropagation?.();
+        const refundNote = '\n\nSi el pedido tiene venta registrada en caja, se aplicará una devolución automática.';
+        const ok = typeof window !== 'undefined'
+            ? window.confirm(`¿Cancelar pedido #${String(order.id).slice(-4)}?${refundNote}`)
+            : true;
+        if (!ok) return;
+        moveOrder(order.id, 'cancelled');
     };
 
     const printKitchenAgain = (e) => {
@@ -180,6 +206,27 @@ const OrderCard = ({ order, queueIndex, moveOrder, setReceiptModalOrder, branch,
                         </span>
                     ) : null}
                 </div>
+                <div className="card-kanban-meta-row">
+                    {isDelivery ? (
+                        <span className="order-fulfillment-pill--delivery" title="Pedido con envío">
+                            Delivery
+                        </span>
+                    ) : null}
+                    <button
+                        type="button"
+                        className="order-detail-trigger"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setDetailOpen(true);
+                            setTicketMenuOpen(false);
+                            setEditMenuOpen(false);
+                        }}
+                        title="Ver todo el detalle del pedido (cliente, productos, envío, pago)"
+                    >
+                        <Eye size={14} aria-hidden />
+                        Ver detalle
+                    </button>
+                </div>
             </div>
 
             <hr className="kanban-card-divider" />
@@ -266,7 +313,7 @@ const OrderCard = ({ order, queueIndex, moveOrder, setReceiptModalOrder, branch,
             <div className="card-actions" style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
                 {order.status === 'pending' && (
                     <>
-                        <button onClick={() => moveOrder(order.id, 'cancelled')} className="btn-icon-action cancel" style={{ flex: '0 0 40px' }} title="Cancelar Pedido">
+                        <button type="button" onClick={handleCancelOrder} className="btn-icon-action cancel" style={{ flex: '0 0 40px' }} title="Cancelar Pedido">
                             <XCircle size={18} />
                         </button>
                         <button onClick={handleMoveToKitchen} className="btn-action primary" style={{ flex: 1 }}>
@@ -274,37 +321,82 @@ const OrderCard = ({ order, queueIndex, moveOrder, setReceiptModalOrder, branch,
                         </button>
                     </>
                 )}
-                {order.status === 'active' && <button onClick={() => moveOrder(order.id, 'completed')} className="btn-action success" style={{ flex: 1, margin: 0 }}>Pedido Listo</button>}
-                {order.status === 'completed' && <button onClick={() => moveOrder(order.id, 'picked_up')} className="btn-action" style={{ background: 'var(--accent-primary)', color: '#fff', flex: 1, margin: 0 }}>Entregado al Cliente</button>}
-                <button
-                    type="button"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setEditOpen(true);
-                    }}
-                    className="btn-icon-action"
-                    style={{ flex: '0 0 40px' }}
-                    title="Editar pedido"
-                    aria-label="Editar pedido"
-                >
-                    <Edit2 size={18} />
-                </button>
+                {order.status === 'active' && (
+                    <>
+                        <button type="button" onClick={handleCancelOrder} className="btn-icon-action cancel" style={{ flex: '0 0 40px' }} title="Cancelar Pedido">
+                            <XCircle size={18} />
+                        </button>
+                        <button onClick={() => moveOrder(order.id, 'completed')} className="btn-action success" style={{ flex: 1, margin: 0 }}>Pedido Listo</button>
+                    </>
+                )}
+                {order.status === 'completed' && (
+                    <>
+                        <button type="button" onClick={handleCancelOrder} className="btn-icon-action cancel" style={{ flex: '0 0 40px' }} title="Cancelar Pedido">
+                            <XCircle size={18} />
+                        </button>
+                        <button onClick={() => moveOrder(order.id, 'picked_up')} className="btn-action" style={{ background: 'var(--accent-primary)', color: '#fff', flex: 1, margin: 0 }}>Entregado al Cliente</button>
+                    </>
+                )}
+                <div className="order-ticket-menu order-edit-menu-wrap" ref={editMenuRef}>
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setEditMenuOpen((v) => !v);
+                            setTicketMenuOpen(false);
+                        }}
+                        className="btn-icon-action"
+                        style={{ flex: '0 0 40px' }}
+                        title="Editar pedido"
+                        aria-label="Editar pedido"
+                        aria-expanded={editMenuOpen}
+                        aria-haspopup="menu"
+                    >
+                        <Edit2 size={18} />
+                    </button>
+                    <OrderEditMenu
+                        isOpen={editMenuOpen}
+                        anchorRef={editMenuRef}
+                        onClose={() => setEditMenuOpen(false)}
+                        onSelect={(step) => {
+                            setEditInitialStep(step);
+                            setEditWizardOpen(true);
+                        }}
+                    />
+                </div>
             </div>
             </div>
 
-            {editOpen ? (
-                <OrderEditModal
-                    isOpen={editOpen}
+            {detailOpen ? (
+                <OrderDetailModal
                     order={order}
-                    onClose={() => setEditOpen(false)}
-                    products={products}
-                    categories={categories}
+                    onClose={() => setDetailOpen(false)}
                     branch={branch}
                     logoUrl={logoUrl ?? null}
                     companyName={companyName}
                     showNotify={showNotify}
-                    onOrderSaved={onOrderSaved}
+                    setReceiptModalOrder={setReceiptModalOrder}
+                />
+            ) : null}
+
+            {editWizardOpen ? (
+                <ManualOrderModal
+                    isOpen={editWizardOpen}
+                    editOrder={order}
+                    initialStep={editInitialStep}
                     moveOrder={moveOrder}
+                    onClose={() => setEditWizardOpen(false)}
+                    products={products}
+                    categories={categories}
+                    clients={clients}
+                    branch={branch}
+                    logoUrl={logoUrl ?? null}
+                    companyName={companyName}
+                    showNotify={showNotify}
+                    onOrderSaved={(saved) => {
+                        onOrderSaved?.(saved);
+                        setEditWizardOpen(false);
+                    }}
                 />
             ) : null}
         </div>

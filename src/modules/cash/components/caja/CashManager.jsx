@@ -57,7 +57,8 @@ const CashManager = ({ showNotify, selectedBranchId, selectedBranch = null, orde
     const [viewingShift, setViewingShift] = useState(null);
     const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
     const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
-    const [movementType, setMovementType] = useState('income');
+    /** @type {'income' | 'cash_withdrawal'} */
+    const [movementModalVariant, setMovementModalVariant] = useState('income');
     const [filterPeriod, setFilterPeriod] = useState('30');
     const [selectedMovementOrder, setSelectedMovementOrder] = useState(null);
 
@@ -186,18 +187,33 @@ const CashManager = ({ showNotify, selectedBranchId, selectedBranch = null, orde
                 <div className="cash-header-actions">
                     {activeShift ? (
                         <>
-                            <button className="btn btn-income" onClick={() => { setMovementType('income'); setIsMovementModalOpen(true); }}>
+                            <button
+                                type="button"
+                                className="btn btn-income"
+                                onClick={() => {
+                                    setMovementModalVariant('income');
+                                    setIsMovementModalOpen(true);
+                                }}
+                            >
                                 <ArrowUpCircle size={16} /> Ingreso
                             </button>
-                            <button className="btn btn-expense" onClick={() => { setMovementType('expense'); setIsMovementModalOpen(true); }}>
-                                <ArrowDownCircle size={16} /> Egreso
+                            <button
+                                type="button"
+                                className="btn btn-expense btn-cash-withdrawal"
+                                onClick={() => {
+                                    setMovementModalVariant('cash_withdrawal');
+                                    setIsMovementModalOpen(true);
+                                }}
+                                title="Retiro de efectivo del turno (compras menores, vuelto). Gastos grandes: Ventas → Gastos del local."
+                            >
+                                <ArrowDownCircle size={16} /> Sacar efectivo
                             </button>
-                            <button className="btn btn-danger" onClick={() => setIsShiftModalOpen(true)}>
+                            <button type="button" className="btn btn-danger" onClick={() => setIsShiftModalOpen(true)}>
                                 <Lock size={16} /> Cerrar caja
                             </button>
                         </>
                     ) : (
-                        <button className="btn btn-primary btn-open-shift" onClick={() => setIsShiftModalOpen(true)}>
+                        <button type="button" className="btn btn-primary btn-open-shift" onClick={() => setIsShiftModalOpen(true)}>
                             <Unlock size={18} /> Abrir caja
                         </button>
                     )}
@@ -253,10 +269,19 @@ const CashManager = ({ showNotify, selectedBranchId, selectedBranch = null, orde
                                         borderColor: 'rgba(220, 38, 38, 0.28)',
                                     }}
                                 />
-                                <span>Egresos</span>
+                                <span>Retiros de efectivo</span>
                             </div>
-                            <div className="cash-kpi-value">{fmt(totals.expenses)}</div>
-                            <div className="cash-kpi-sub">{movements.filter(m => m.type === 'expense').length} movimientos</div>
+                            <div className="cash-kpi-value">{fmt(Number(totals.cashWithdrawals) || 0)}</div>
+                            <div className="cash-kpi-sub">
+                                {Number(totals.cashWithdrawalCount) || 0} retiro
+                                {(Number(totals.cashWithdrawalCount) || 0) === 1 ? '' : 's'}
+                                {(totals.operatingExpenseCount ?? 0) > 0
+                                    ? ` · Gastos operativos: ${totals.operatingExpenseCount} (${fmt(totals.operatingExpenses ?? 0)})`
+                                    : ''}
+                                {(totals.refundExpenseCount ?? 0) > 0
+                                    ? ` · Devoluciones: ${totals.refundExpenseCount} (${fmt(totals.refundExpenses ?? 0)})`
+                                    : ''}
+                            </div>
                         </div>
 
                         <div className="cash-kpi methods">
@@ -466,19 +491,30 @@ const CashManager = ({ showNotify, selectedBranchId, selectedBranch = null, orde
             </section>
 
             {/* MODALES */}
-            <CashShiftModal 
-                isOpen={isShiftModalOpen} 
+            <CashShiftModal
+                isOpen={isShiftModalOpen}
                 onClose={() => setIsShiftModalOpen(false)}
                 type={activeShift ? 'close' : 'open'}
                 activeShift={activeShift}
+                movements={movements}
+                getTotals={getTotals}
                 onConfirm={activeShift ? closeShift : openShift}
             />
 
-            <CashMovementModal 
+            <CashMovementModal
                 isOpen={isMovementModalOpen}
                 onClose={() => setIsMovementModalOpen(false)}
-                type={movementType}
-                onConfirm={addManualMovement}
+                variant={movementModalVariant}
+                onConfirm={async (type, amount, description, paymentMethod) => {
+                    const opts =
+                        movementModalVariant === 'cash_withdrawal'
+                            ? {
+                                  expenseKind: 'cash_withdrawal',
+                                  successMessage: 'Retiro de efectivo registrado',
+                              }
+                            : {};
+                    return addManualMovement(type, amount, description, paymentMethod, opts);
+                }}
             />
 
             <CashShiftDetailModal 

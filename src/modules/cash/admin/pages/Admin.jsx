@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Loader2, Search, Filter, CheckCircle2, AlertCircle,
-  Package, PlusCircle, X, Trash2, Plus, Edit, RefreshCw, List, ShoppingBag, Tag, LayoutGrid, ArrowUpDown, Eye, EyeOff, Upload, HelpCircle, Store,
+  Package, PlusCircle, X, Trash2, Plus, Edit, RefreshCw, List, ShoppingBag, Tag, LayoutGrid, ArrowUpDown, Eye, EyeOff, Upload, HelpCircle, Store, Image, ImageOff,
 } from 'lucide-react';
 import ProductModal from '../products/components/ProductModal';
 import CategoryModal from '../products/components/CategoryModal';
@@ -21,6 +21,7 @@ import AdminTopBar from '../../components/AdminTopBar';
 import AdminNotificationCenter from '../../components/AdminNotificationCenter';
 import AdminBranchSelector from '../../components/AdminBranchSelector';
 import AdminHeaderClock from '../../components/AdminHeaderClock';
+import OrderIntakePauseControl from '../../components/OrderIntakePauseControl';
 import { isModKey, isTypingContext } from '../utils/keyboardAdmin';
 import { ADMIN_PANEL_TAB_IDS } from '@/shared/constants/admin-panel-tabs';
 import { listBroadcasts, acknowledgeBroadcast as acknowledgeBroadcastService } from '../../services/broadcastsService';
@@ -54,6 +55,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
     filterCategory, setFilterCategory,
     filterStatus, setFilterStatus,
     viewMode, setViewMode,
+    showProductPhotos, setShowProductPhotos,
     sortOrder, setSortOrder,
     refreshing,
     isMobile,
@@ -203,6 +205,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
       return `${c} y Turnos`;
     }
     if (activeTab === 'analytics') return tabLabels.analytics || 'Reportes';
+    if (activeTab === 'local_expenses') return tabLabels.local_expenses || 'Gastos del local';
     if (activeDynamicModule) return tabLabels[activeTab] || activeDynamicModule.label;
     return tabLabels[activeTab] || activeTab;
   }, [activeTab, activeDynamicModule, isHistoryView, tabLabels]);
@@ -456,13 +459,25 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
               selectedBranch={selectedBranch}
               onSelectBranch={setSelectedBranch}
               disabled={isBranchLocked}
-              allowAllOption={activeTab === 'analytics'}
+              allowAllOption={activeTab === 'analytics' || activeTab === 'local_expenses'}
               lockTitle="Tu correo está bloqueado a una sucursal específica."
               className="header-action-branch"
             />
 
             {activeTab === 'orders' && (
               <div className="header-actions-orders-row">
+                <OrderIntakePauseControl
+                  branchId={selectedBranch?.id}
+                  showNotify={showNotify}
+                  disabled={!selectedBranch || selectedBranch.id === 'all'}
+                  disabledReason={
+                    selectedBranch?.id === 'all'
+                      ? 'Selecciona una sucursal concreta para pausar pedidos online'
+                      : !selectedBranch
+                        ? 'Selecciona una sucursal'
+                        : ''
+                  }
+                />
                 <button
                   type="button"
                   className={`btn header-action-orders-history ${isHistoryView ? 'btn-primary' : 'btn-secondary'}`}
@@ -598,6 +613,16 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
                   <strong className="admin-stats-bar__value admin-stats-bar__value--danger">{productStats.paused}</strong>
                 </div>
               </div>
+              <button
+                type="button"
+                className={`admin-stats-bar__photos-toggle${showProductPhotos ? ' is-on' : ''}`}
+                onClick={() => setShowProductPhotos((v) => !v)}
+                aria-pressed={showProductPhotos}
+                title={showProductPhotos ? 'Ocultar fotos en la lista de platos' : 'Mostrar fotos en la lista de platos'}
+              >
+                {showProductPhotos ? <Image size={18} aria-hidden /> : <ImageOff size={18} aria-hidden />}
+                <span>{showProductPhotos ? 'Fotos visibles' : 'Fotos ocultas'}</span>
+              </button>
             </div>
 
             <div className="admin-toolbar glass">
@@ -643,12 +668,15 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
               </div>
             </div>
             
-            <div className={`inventory-grid ${viewMode === 'list' ? 'list-mode' : ''}`}>
+            <div
+              className={`inventory-grid${viewMode === 'list' ? ' list-mode' : ''}${showProductPhotos ? '' : ' inventory-grid--no-photos'}`}
+            >
               {processedProducts.map(p => (
                   <InventoryCard
                     key={p.id}
                     product={p}
                     viewMode={viewMode}
+                    showPhotos={showProductPhotos}
                     toggleProductActive={toggleProductActive}
                     setEditingProduct={setEditingProduct}
                     setIsModalOpen={setIsModalOpen}
@@ -716,17 +744,25 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
         )}
 
         {/* 3. REPORTES */}
-        {activeTab === 'analytics' && (
-          <AdminErrorBoundary tabLabel={tabLabels.analytics || 'Reportes'} onRetry={() => loadData(true)}>
+        {(activeTab === 'analytics' || activeTab === 'local_expenses') && (
+          <AdminErrorBoundary
+            tabLabel={
+              activeTab === 'local_expenses'
+                ? tabLabels.local_expenses || 'Gastos del local'
+                : tabLabels.analytics || 'Reportes'
+            }
+            onRetry={() => loadData(true)}
+          >
             <React.Suspense fallback={<AdminTabFallback />}>
-              <AdminAnalytics 
-                orders={orders} 
-                products={products} 
-                clients={clients} 
+              <AdminAnalytics
+                orders={orders}
+                products={products}
+                clients={clients}
                 branches={branches.filter(b => b.id !== 'all')}
                 showNotify={showNotify}
                 companyId={companyIdForClients}
                 selectedBranch={selectedBranch}
+                view={activeTab === 'local_expenses' ? 'expensesOnly' : 'full'}
               />
             </React.Suspense>
           </AdminErrorBoundary>
@@ -1044,10 +1080,10 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
         onClose={() => setIsManualOrderModalOpen(false)}
         products={products}
         categories={categories}
+        clients={clients}
         onOrderSaved={() => loadData(true)}
         isMobile={isMobile}
         showNotify={showNotify}
-        registerSale={cashSystem.registerSale}
         branch={selectedBranch}
         logoUrl={logoUrl}
         companyName={companyName}

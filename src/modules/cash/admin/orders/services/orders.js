@@ -529,9 +529,23 @@ export const ordersService = {
             ? resolveNamedAreaLabelFromSettings(branchSettings, namedId)
             : '';
 
+        const streetLine = isDelivery ? String(patch.delivery_address ?? '').trim() : '';
+        let rawForDelivery = patch.delivery_address_base ?? patch.delivery_address;
+        if (
+            isDelivery &&
+            patch.delivery_address_base &&
+            typeof patch.delivery_address_base === 'object' &&
+            !Array.isArray(patch.delivery_address_base)
+        ) {
+            rawForDelivery = {
+                ...(/** @type {Record<string, unknown>} */ (patch.delivery_address_base)),
+                ...(streetLine ? { address: streetLine } : {}),
+            };
+        }
+
         const deliveryAddressRecord = isDelivery
             ? buildDeliveryAddressRecord({
-                rawAddress: patch.delivery_address,
+                rawAddress: rawForDelivery,
                 deliveryReference: patch.delivery_reference,
                 namedAreaId: namedId,
                 namedAreaLabel: namedLabel || null,

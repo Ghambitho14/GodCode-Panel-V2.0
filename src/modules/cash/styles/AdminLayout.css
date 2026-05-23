@@ -368,6 +368,103 @@
 	min-width: 0;
 }
 
+/* Pausa pedidos online (menú público) */
+.admin-layout .order-intake-pause {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	position: relative;
+}
+
+.admin-layout .order-intake-pause__badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 12px;
+	border-radius: 999px;
+	font-size: 0.72rem;
+	font-weight: 700;
+	background: rgba(22, 163, 74, 0.12);
+	color: #15803d;
+	border: 1px solid rgba(22, 163, 74, 0.28);
+}
+
+.admin-layout .order-intake-pause__badge--paused {
+	background: rgba(245, 158, 11, 0.14);
+	color: #b45309;
+	border-color: rgba(245, 158, 11, 0.35);
+}
+
+.admin-layout .order-intake-pause--active .order-intake-pause__btn {
+	border-color: rgba(22, 163, 74, 0.4);
+}
+
+.admin-layout .order-intake-pause__confirm {
+	position: absolute;
+	top: calc(100% + 8px);
+	right: 0;
+	z-index: 120;
+	width: min(320px, 92vw);
+	padding: 14px;
+	border-radius: 14px;
+	border: 1px solid var(--admin-border);
+	box-shadow: var(--admin-shadow-md, 0 8px 24px rgba(15, 23, 42, 0.12));
+}
+
+.admin-layout .order-intake-pause__confirm-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+	font-size: 0.88rem;
+}
+
+.admin-layout .order-intake-pause__confirm-lead {
+	margin: 0 0 10px;
+	font-size: 0.78rem;
+	line-height: 1.45;
+	color: var(--admin-text-muted);
+}
+
+.admin-layout .order-intake-pause__label {
+	display: block;
+	font-size: 0.75rem;
+	font-weight: 600;
+	margin-bottom: 6px;
+}
+
+.admin-layout .order-intake-pause__textarea {
+	width: 100%;
+	min-height: 72px;
+	resize: vertical;
+	font-size: 0.82rem;
+}
+
+.admin-layout .order-intake-pause__preview-label {
+	margin: 8px 0 4px;
+	font-size: 0.7rem;
+	font-weight: 600;
+	color: var(--admin-text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.admin-layout .order-intake-pause__preview {
+	margin: 0 0 12px;
+	padding: 10px;
+	border-radius: 8px;
+	background: var(--admin-page-bg, #f4f6f9);
+	font-size: 0.8rem;
+	line-height: 1.4;
+}
+
+.admin-layout .order-intake-pause__confirm-actions {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+}
+
 .admin-layout .header-actions > button:not(.btn-icon-refresh):not(.admin-icon-btn),
 .admin-layout .header-actions .btn {
 	height: 42px;

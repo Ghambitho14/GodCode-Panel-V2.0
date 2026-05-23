@@ -86,13 +86,37 @@ export const cashService = {
 	 * Autorización: policy `cash_shifts_update_ceo_cashier` (filtra por company del usuario y rol).
 	 * El filtro `.eq('status', 'open')` evita cerrar dos veces el mismo turno.
 	 */
-	closeShift: async (shiftId, actualBalance) => {
+	/**
+	 * @param {string} shiftId
+	 * @param {{
+	 *   cash: number;
+	 *   card: number;
+	 *   online: number;
+	 *   expectedCard: number;
+	 *   expectedOnline: number;
+	 * }} payload
+	 */
+	closeShift: async (shiftId, payload) => {
+		const cash = Number(payload?.cash);
+		const card = Number(payload?.card);
+		const online = Number(payload?.online);
+		if (!Number.isFinite(cash) || cash < 0) {
+			throw new Error('Monto de efectivo inválido.');
+		}
+		if (!Number.isFinite(card) || card < 0 || !Number.isFinite(online) || online < 0) {
+			throw new Error('Montos de tarjeta o transferencia inválidos.');
+		}
+
 		const { data, error } = await supabase
 			.from(TABLES.cash_shifts)
 			.update({
-				actual_balance: actualBalance,
+				actual_balance: cash,
+				actual_card_balance: card,
+				actual_online_balance: online,
+				expected_card_balance: Number(payload.expectedCard) || 0,
+				expected_online_balance: Number(payload.expectedOnline) || 0,
 				closed_at: new Date().toISOString(),
-				status: 'closed'
+				status: 'closed',
 			})
 			.eq('id', shiftId)
 			.eq('status', 'open')
@@ -115,14 +139,18 @@ export const cashService = {
 		if (isNaN(numericAmount) || numericAmount <= 0) {
 			throw new Error('Monto invalido para movimiento de caja.');
 		}
-		const { data, error } = await supabase.rpc('cash_add_movement', {
+		const rpcPayload = {
 			p_shift_id: movement.shift_id,
 			p_type: movement.type,
 			p_amount: numericAmount,
 			p_description: movement.description,
 			p_payment_method: movement.payment_method,
-			p_order_id: movement.order_id || null
-		});
+			p_order_id: movement.order_id || null,
+		};
+		if (movement.expense_kind != null && String(movement.expense_kind).trim() !== '') {
+			rpcPayload.p_expense_kind = String(movement.expense_kind).trim();
+		}
+		const { data, error } = await supabase.rpc('cash_add_movement', rpcPayload);
 		if (error) throw error;
 		return data;
 	},
@@ -184,6 +212,47 @@ export const cashService = {
 			orders:
 				r.order_id != null ? byId[String(r.order_id)] ?? null : null,
 		}));
+	},
+
+	/**
+	 * Gastos manuales del local: `expense` sin `order_id`, en rango de fechas.
+	 * Si `endIso` se omite, solo se aplica cota inferior (hasta "ahora" en la BD).
+	 * Con `endIso`, intervalo half-open [start, end) como `getMonthRangeUtc`.
+	 * @param {{ companyId?: string | null; branchId?: string | null; startIso: string; endIso?: string | null; limit?: number }} params
+	 */
+	getManualExpenseMovementsInRange: async ({
+		companyId = null,
+		branchId = null,
+		startIso,
+		endIso = null,
+		limit = 5000,
+	}) => {
+		if (!startIso) return [];
+		let q = supabase
+			.from(TABLES.cash_movements)
+			.select(
+				`id, type, amount, created_at, description, payment_method, order_id, expense_kind, shift_id, ${TABLES.cash_shifts}!inner(branch_id, company_id)`,
+			)
+			.eq('type', 'expense')
+			.is('order_id', null)
+			.gte('created_at', startIso)
+			.order('created_at', { ascending: true })
+			.limit(limit);
+
+		if (endIso) {
+			q = q.lt('created_at', endIso);
+		}
+
+		if (companyId) {
+			q = q.eq(`${TABLES.cash_shifts}.company_id`, companyId);
+		}
+		if (branchId && branchId !== 'all') {
+			q = q.eq(`${TABLES.cash_shifts}.branch_id`, branchId);
+		}
+
+		const { data, error } = await q;
+		if (error) throw error;
+		return data || [];
 	},
 
 	getPastShifts: async (limit = 20, branchId = null) => {

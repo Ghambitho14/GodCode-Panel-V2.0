@@ -12,8 +12,9 @@
  *   formulario lo edite como strings simples (igual que `useManualOrder`).
  */
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { formatRut, validateRut } from '@/shared/utils/formatters';
 import { validateImageFile } from '@/shared/utils/cloudinary';
+import { formatRut, validateRut } from '@/shared/utils/formatters';
+import { flattenDeliveryAddress } from '@/shared/utils/orderUtils';
 import { ordersService } from '../admin/orders/services/orders';
 import { supabase, TABLES } from '@/integrations/supabase';
 import { buildCouponPreview } from '@/lib/discount-coupon';
@@ -27,37 +28,6 @@ const PREVIEW_ERR_MSG = {
 	coupon_usage_exhausted: 'Este cupón ya no tiene usos disponibles.',
 	coupon_usage_exhausted_client: 'Este cupón ya fue usado con este teléfono.',
 };
-
-/** Aplana `delivery_address` JSONB a strings simples para el form. */
-function flattenDeliveryAddress(addr) {
-	if (!addr || typeof addr !== 'object' || Array.isArray(addr)) {
-		const line = typeof addr === 'string' ? addr : '';
-		return {
-			delivery_address: line,
-			delivery_reference: '',
-			delivery_named_area_id: '',
-		};
-	}
-	const line =
-		typeof addr.address === 'string'
-			? addr.address
-			: typeof addr.formatted_address === 'string'
-				? addr.formatted_address
-				: '';
-	const ref =
-		typeof addr.reference === 'string'
-			? addr.reference
-			: typeof addr.street_detail === 'string'
-				? addr.street_detail
-				: '';
-	const nid =
-		typeof addr.named_area_id === 'string' ? addr.named_area_id.trim() : '';
-	return {
-		delivery_address: line,
-		delivery_reference: ref,
-		delivery_named_area_id: nid,
-	};
-}
 
 /** Normaliza el order_type del pedido al formato del formulario. */
 function normalizeOrderType(raw) {
@@ -182,6 +152,32 @@ export const useOrderEdit = (
 			return Number(product.discount_price);
 		}
 		return Number(product?.price) || 0;
+	}, []);
+
+	const applyClientRecord = useCallback((client) => {
+		if (!client || typeof client !== 'object') return;
+		const name = String(client.name ?? '').trim();
+		const rutRaw = String(client.rut ?? client.document ?? '').trim();
+		const rut = rutRaw ? formatRut(rutRaw) : '';
+		let phone = String(client.phone ?? '').trim();
+		if (!phone.startsWith('+56 9')) {
+			const digits = phone.replace(/\D/g, '');
+			if (digits.length >= 9) {
+				const local = digits.startsWith('56') ? digits.slice(2) : digits;
+				phone = local.startsWith('9') ? `+56 ${local}` : `+56 9 ${local}`;
+			} else if (!phone) {
+				phone = '+56 9 ';
+			}
+		}
+		setManualOrder((prev) => ({
+			...prev,
+			client_name: name || prev.client_name,
+			client_rut: rut || prev.client_rut,
+			client_phone: phone || prev.client_phone,
+		}));
+		setRutValid(rut ? validateRut(rut) : false);
+		const digitCount = phone.replace(/\D/g, '').length;
+		setPhoneValid(digitCount >= 11);
 	}, []);
 
 	const updateClientName = (val) => setManualOrder((prev) => ({ ...prev, client_name: val }));
@@ -501,6 +497,8 @@ export const useOrderEdit = (
 				order_type: manualOrder.order_type,
 				items: itemsForOrder,
 				payment_type: manualOrder.payment_type,
+				delivery_address_base:
+					manualOrder.order_type === 'delivery' ? initialOrder.delivery_address : null,
 				delivery_address:
 					manualOrder.order_type === 'delivery'
 						? sanitizeInput(manualOrder.delivery_address) || ''
@@ -566,6 +564,7 @@ export const useOrderEdit = (
 		updatePaymentType,
 		handleRutChange,
 		handlePhoneChange,
+		applyClientRecord,
 		handleFileChange,
 		removeReceipt,
 		addItem,

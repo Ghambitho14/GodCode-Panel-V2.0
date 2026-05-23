@@ -219,6 +219,70 @@ export function getPaymentSlug(order) {
 }
 
 /**
+ * Método de pago para movimientos de caja (`cash` | `card` | `online`).
+ * Si ya hay venta registrada, usa el mismo método para que venta y devolución cuadren.
+ * @param {Record<string, unknown> | null | undefined} order
+ * @param {Array<{ type?: string; payment_method?: string | null }>} [existingMovements]
+ * @returns {'cash' | 'card' | 'online'}
+ */
+export function getCashMovementPaymentMethod(order, existingMovements = []) {
+	const sale = (existingMovements || []).find((m) => m?.type === 'sale');
+	const fromSale = sale?.payment_method;
+	if (fromSale === 'cash' || fromSale === 'card' || fromSale === 'online') {
+		return fromSale;
+	}
+	if (!order) return 'cash';
+	const specific = order.payment_method_specific;
+	if (specific === 'tarjeta' || specific === 'stripe') return 'card';
+	if (specific && ONLINE_SPECIFIC_METHODS.has(specific)) return 'online';
+	const pt = String(order.payment_type ?? '').toLowerCase();
+	if (pt === 'online' || pt === 'transferencia') return 'online';
+	if (pt === 'tarjeta' || pt === 'card') return 'card';
+	return 'cash';
+}
+
+/**
+ * Aplana delivery_address JSONB a campos del formulario (sin usar formatted_address como calle).
+ * @param {unknown} addr
+ * @returns {{ delivery_address: string; delivery_reference: string; delivery_named_area_id: string }}
+ */
+export function flattenDeliveryAddress(addr) {
+	if (!addr || typeof addr !== 'object' || Array.isArray(addr)) {
+		const line = typeof addr === 'string' ? addr.replace(/<[^>]*>?/gm, '').trim() : '';
+		return {
+			delivery_address: line,
+			delivery_reference: '',
+			delivery_named_area_id: '',
+		};
+	}
+	const o = /** @type {Record<string, unknown>} */ (addr);
+	const line =
+		(typeof o.address === 'string' && o.address.trim()) ? o.address.trim()
+			: (typeof o.street === 'string' && o.street.trim()) ? o.street.trim()
+				: (typeof o.line1 === 'string' && o.line1.trim()) ? o.line1.trim()
+					: (typeof o.line_1 === 'string' && o.line_1.trim()) ? o.line_1.trim()
+						: '';
+	const ref =
+		(typeof o.reference === 'string' && o.reference.trim()) ? o.reference.trim()
+			: (typeof o.street_detail === 'string' && o.street_detail.trim()) ? o.street_detail.trim()
+				: (typeof o.referencia === 'string' && o.referencia.trim()) ? o.referencia.trim()
+					: '';
+	const nid =
+		typeof o.named_area_id === 'string' ? o.named_area_id.trim() : '';
+	return {
+		delivery_address: line,
+		delivery_reference: ref,
+		delivery_named_area_id: nid,
+	};
+}
+
+/** @param {string} line */
+function looksPreformattedDeliveryLine(line) {
+	if (!line) return false;
+	return /\bzona\s*:/i.test(line) || /\bref\s*:/i.test(line) || line.includes(' · ');
+}
+
+/**
  * Objeto JSON persistido en orders.delivery_address para panel / tickets.
  * @param {{
  *   rawAddress?: unknown;
@@ -257,26 +321,33 @@ export function buildDeliveryAddressRecord(p) {
 		if (nid) base.named_area_id = nid;
 		if (nlab) base.named_area_label = nlab;
 
+		const compound = looksPreformattedDeliveryLine(lineAddr);
 		const parts = [];
-		if (nlab || base.named_area_label) {
-			parts.push(`Zona: ${String(base.named_area_label ?? nlab ?? '').trim()}`);
+		if (!compound) {
+			if (nlab || base.named_area_label) {
+				parts.push(`Zona: ${String(base.named_area_label ?? nlab ?? '').trim()}`);
+			}
+			if (lineAddr) parts.push(lineAddr);
+			if (ref) parts.push(`Ref: ${ref}`);
 		}
-		if (lineAddr) parts.push(lineAddr);
-		if (ref) parts.push(`Ref: ${ref}`);
-		const formatted =
-			parts.filter(Boolean).join(' · ') ||
-			(typeof base.formatted_address === 'string' &&
-			String(base.formatted_address).trim()
-				? String(base.formatted_address).trim()
-				: lineAddr || ref || 'Delivery');
-		base.formatted_address =
-			typeof base.formatted_address === 'string' && base.formatted_address.trim()
-				? base.formatted_address.trim()
-				: formatted;
+		const formatted = compound
+			? lineAddr
+			: parts.filter(Boolean).join(' · ') ||
+				(typeof base.formatted_address === 'string' && String(base.formatted_address).trim()
+					? String(base.formatted_address).trim()
+					: lineAddr || ref || 'Delivery');
+		base.formatted_address = formatted;
 		if (!base.address || !String(base.address).trim()) {
-			base.address =
-				lineAddr || base.formatted_address;
+			base.address = compound ? lineAddr : (lineAddr || formatted);
+		} else if (lineAddr) {
+			base.address = lineAddr;
 		}
+		if (ref) {
+			base.reference = ref;
+			base.street_detail = ref;
+		}
+		if (nid) base.named_area_id = nid;
+		if (nlab) base.named_area_label = nlab;
 		return base;
 	}
 
@@ -290,11 +361,18 @@ export function buildDeliveryAddressRecord(p) {
 			? String(p.namedAreaLabel).trim()
 			: '';
 
+	const compound = looksPreformattedDeliveryLine(lineAddr);
 	const parts = [];
-	if (nlab) parts.push(`Zona: ${nlab}`);
-	if (lineAddr) parts.push(lineAddr);
-	if (ref) parts.push(`Ref: ${ref}`);
-	const formatted = parts.length > 0 ? parts.join(' · ') : lineAddr || nlab || ref || 'Delivery';
+	if (!compound) {
+		if (nlab) parts.push(`Zona: ${nlab}`);
+		if (lineAddr) parts.push(lineAddr);
+		if (ref) parts.push(`Ref: ${ref}`);
+	}
+	const formatted = compound
+		? lineAddr
+		: parts.length > 0
+			? parts.join(' · ')
+			: lineAddr || nlab || ref || 'Delivery';
 
 	/** @type {Record<string, unknown>} */
 	const out = {
@@ -386,7 +464,13 @@ export function deliveryAddressLines(addr) {
 			lines.push(`${String(o[k]).trim()}`);
 		}
 	}
-	if (lines.length > 0) return [...new Set(lines)];
+	if (lines.length > 0) {
+		const unique = [...new Set(lines)];
+		return unique.filter((line, idx) => {
+			const lower = line.toLowerCase();
+			return !unique.some((other, j) => j !== idx && other.length > lower.length && other.toLowerCase().includes(lower));
+		});
+	}
 	try {
 		return [JSON.stringify(o, null, 2)];
 	} catch {

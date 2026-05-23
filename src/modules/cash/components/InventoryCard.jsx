@@ -1,13 +1,13 @@
 import React, { memo } from 'react';
 import { Eye, EyeOff, Trash, Edit3, Star } from 'lucide-react';
 import AdminIconSlot from './AdminIconSlot';
-const logo = '/tenant/logo-placeholder.svg';
+import { PRODUCT_IMAGE_PLACEHOLDER } from '../constants/productImagePlaceholder';
 
 /**
  * Tarjeta de producto del **menú / carta** (catálogo vendible).
  * El nombre histórico `InventoryCard` se mantiene por imports; en UI se distingue de la pestaña Inventario (insumos).
  */
-const InventoryCard = memo(({ product, toggleProductActive, setEditingProduct, setIsModalOpen, deleteProduct, viewMode = 'grid' }) => {
+const InventoryCard = memo(({ product, toggleProductActive, setEditingProduct, setIsModalOpen, deleteProduct, viewMode = 'grid', showPhotos = true }) => {
 
     // Manejadores de eventos limpios para evitar lógica en el JSX
     const handleEditClick = () => {
@@ -28,7 +28,7 @@ const InventoryCard = memo(({ product, toggleProductActive, setEditingProduct, s
     // Manejo seguro de imagen rota (evita bucles infinitos)
     const handleImageError = (e) => {
         e.target.onerror = null; // Previene bucle si el logo también falla
-        e.target.src = logo;
+        e.target.src = PRODUCT_IMAGE_PLACEHOLDER;
     };
 
     // Manejo de teclado para accesibilidad (Enter para editar)
@@ -42,38 +42,45 @@ const InventoryCard = memo(({ product, toggleProductActive, setEditingProduct, s
         }
     };
 
+    const statusToggleBtn = (
+        <button
+            className={`inv-status-toggle ${product.is_active ? 'on' : 'off'}${showPhotos && viewMode === 'grid' ? '' : ' inv-status-toggle--inline'}`}
+            onClick={handleToggleClick}
+            title={product.is_active ? 'Pausar venta' : 'Activar venta'}
+            type="button"
+        >
+            {product.is_active ? <Eye size={16} /> : <EyeOff size={16} />}
+        </button>
+    );
+
     return (
         <div 
-            className={`inventory-card glass ${!product.is_active ? 'inactive' : ''} ${viewMode === 'list' ? 'list-view' : ''}`}
+            className={`inventory-card glass ${!product.is_active ? 'inactive' : ''} ${viewMode === 'list' ? 'list-view' : ''}${showPhotos ? '' : ' inventory-card--no-photos'}`}
             onClick={handleEditClick}
             onKeyDown={handleKeyDown}
             role="button"
             tabIndex={0} // Hace que el div sea "enfocable" con Tab
             aria-label={`Editar producto ${product.name}`}
         >
-            {/* --- IMAGEN --- */}
-            <div className="inv-img-wrapper">
-                <img 
-                    src={product.image_url || logo} 
-                    alt={product.name} 
-                    onError={handleImageError} 
-                    loading="lazy" // Mejora rendimiento en listas largas
-                />
-                
-                {/* Botón Flotante de Estado (Solo en Grid) */}
-                {viewMode === 'grid' && (
-                    <button 
-                        className={`inv-status-toggle ${product.is_active ? 'on' : 'off'}`} 
-                        onClick={handleToggleClick}
-                        title={product.is_active ? "Pausar venta" : "Activar venta"}
-                    >
-                        {product.is_active ? <Eye size={16} /> : <EyeOff size={16} />}
-                    </button>
-                )}
-            </div>
+            {showPhotos ? (
+                <div className="inv-img-wrapper">
+                    <img
+                        src={product.image_url || PRODUCT_IMAGE_PLACEHOLDER}
+                        alt={product.name}
+                        onError={handleImageError}
+                        loading="lazy"
+                    />
+                    {viewMode === 'grid' ? statusToggleBtn : null}
+                </div>
+            ) : null}
 
             <div className="inv-info">
                 <div className="inv-header">
+                    {viewMode === 'grid' && !showPhotos ? (
+                        <div className="inv-header-top">
+                            {statusToggleBtn}
+                        </div>
+                    ) : null}
                     <div className="inv-title-row">
                         <h4>{product.name}</h4>
                         {product.is_special && (

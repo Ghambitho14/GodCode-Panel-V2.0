@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ChefHat, ShoppingBag, BarChart3, Users, List, LogOut, DollarSign, Store, ChevronDown, ClipboardList, Blocks, SlidersHorizontal, Calculator, FolderTree, CupSoda, Sparkles, Tag } from 'lucide-react';
+import { ChefHat, ShoppingBag, BarChart3, Users, List, LogOut, DollarSign, Store, ChevronDown, ClipboardList, Blocks, SlidersHorizontal, Calculator, FolderTree, CupSoda, Sparkles, Tag, Wallet } from 'lucide-react';
 
 const SidebarIcon = ({ Icon, size }) => (
     <span className="nav-icon-slot">
@@ -52,18 +52,6 @@ const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRo
                 return String(a.label || '').localeCompare(String(b.label || ''));
             });
 
-        if (typeof window !== 'undefined' && !window.__godcodeSoporteDebug) {
-            window.__godcodeSoporteDebug = true;
-            // eslint-disable-next-line no-console
-            console.log('[soporte-debug]', {
-                userRole,
-                normalizedRole,
-                dynamicModulesCount: Array.isArray(dynamicModules) ? dynamicModules.length : -1,
-                dynamicModules,
-                visibleModules,
-            });
-        }
-
         const rootModules = visibleModules.filter((module) => module.navGroup === 'root');
         const salesModules = visibleModules.filter((module) => module.navGroup === 'sales');
         const menuModules = visibleModules.filter((module) => module.navGroup === 'menu');
@@ -84,6 +72,7 @@ const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRo
 				children: [
 					{ id: 'caja', label: L.caja || 'Caja', icon: Calculator },
 					{ id: 'analytics', label: L.analytics || 'Reportes', icon: BarChart3 },
+					{ id: 'local_expenses', label: L.local_expenses || 'Gastos del local', icon: Wallet },
 					...salesModules.map((module) => ({
 						id: module.tabId,
 						label: L[module.tabId] || module.label,

@@ -244,6 +244,31 @@
 }
 
 /* Vista lista (una columna, fila horizontal) */
+.admin-layout .inventory-grid.inventory-grid--no-photos {
+	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+	gap: 16px;
+}
+
+.admin-layout .inventory-card.inventory-card--no-photos .inv-info {
+	padding: 12px 14px 14px;
+}
+
+.admin-layout .inventory-card.inventory-card--no-photos .inv-header-top {
+	display: flex;
+	justify-content: flex-end;
+	margin-bottom: 8px;
+}
+
+.admin-layout .inv-status-toggle--inline {
+	position: static;
+	width: 32px;
+	height: 32px;
+}
+
+.admin-layout .inventory-card.list-view.inventory-card--no-photos .inv-info {
+	padding: 14px 16px;
+}
+
 .admin-layout .inventory-grid.list-mode {
 	grid-template-columns: 1fr;
 }

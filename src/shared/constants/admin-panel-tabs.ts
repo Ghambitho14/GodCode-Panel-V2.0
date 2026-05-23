@@ -9,6 +9,7 @@ export const ADMIN_PANEL_TAB_OPTIONS = [
   { id: "orders", label: "Cocina / Pedidos" },
   { id: "caja", label: "Caja" },
   { id: "analytics", label: "Reportes" },
+  { id: "local_expenses", label: "Gastos del local" },
   { id: "categories", label: "Categorías" },
   /** Catálogo vendible (platos); no confundir con la pestaña `inventory` (insumos / stock). */
   { id: "products", label: "Menú y carta" },
@@ -30,7 +31,7 @@ export const DEFAULT_ROLE_NAV_PERMISSIONS: Record<string, string[]> = {
   owner: [...ALL_TABS],
   admin: [...ALL_TABS],
   ceo: [...ALL_TABS],
-  cashier: ["orders", "caja"],
+  cashier: ["orders", "caja", "local_expenses"],
 };
 
 export function getDefaultRoleNavPermissions(): Record<string, string[]> {

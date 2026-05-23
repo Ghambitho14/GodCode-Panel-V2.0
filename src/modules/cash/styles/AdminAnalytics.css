@@ -202,6 +202,14 @@
 }
 
 /* Chart Card */
+.admin-layout .rpt-chart-card--expenses-solo {
+  min-height: 640px;
+}
+
+.admin-layout .rpt-chart-card--expenses-solo.rpt-chart-card--expenses-filtered {
+  min-height: 320px;
+}
+
 .admin-layout .rpt-chart-card {
     background: var(--admin-card-bg, #fff);
     border: 1px solid var(--admin-border, #e8ecf1);
@@ -230,6 +238,721 @@
     align-items: center;
     justify-content: flex-end;
     gap: 10px;
+}
+
+.admin-layout .rpt-lwc-host {
+    width: 100%;
+    min-height: 200px;
+    position: relative;
+    isolation: isolate;
+}
+
+.admin-layout .rpt-lwc-host > * {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+/* Rosen Charts — ventas + gastos (D3, patrón rosencharts.com) */
+.admin-layout .rpt-chart-wrapper--rosen {
+    padding: 4px 0 0;
+}
+
+.admin-layout .rpt-rosen-chart {
+    --rpt-rosen-margin-top: 22px;
+    --rpt-rosen-margin-right: 44px;
+    --rpt-rosen-margin-bottom: 52px;
+    --rpt-rosen-margin-left: 44px;
+    /* Paleta Rosen — Vertical Multi Bars */
+    --rpt-chart-purple: #b388ff;
+    --rpt-chart-purple-light: #e1d5ff;
+    --rpt-chart-purple-deep: #9f7aea;
+    --rpt-chart-purple-line: #8b5cf6;
+    --rpt-chart-expenses-dark: #1e293b;
+    position: relative;
+    width: 100%;
+}
+
+.admin-layout .rpt-rosen-chart__legend {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 5;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--admin-text-muted, #64748b);
+}
+
+.admin-layout .rpt-rosen-chart__legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.admin-layout .rpt-rosen-chart__legend-item::before {
+    content: '';
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+}
+
+.admin-layout .rpt-rosen-chart__legend-item--sales::before {
+    background: var(--rpt-chart-purple);
+}
+
+.admin-layout .rpt-rosen-chart__legend-item--expenses::before {
+    background: var(--rpt-chart-purple-light);
+    border: 1px solid color-mix(in srgb, var(--rpt-chart-purple) 22%, transparent);
+    border-radius: 3px;
+    width: 10px;
+    height: 10px;
+}
+
+.admin-layout .rpt-rosen-chart:not(.rpt-rosen-chart--multi-bar) .rpt-rosen-chart__legend-item--expenses::before {
+    background: var(--rpt-chart-purple-line);
+    border: none;
+    border-radius: 999px;
+    width: 14px;
+    height: 3px;
+}
+
+/* Área y barras degradado: gastos en línea negra (contraste con ventas púrpura) */
+.admin-layout .rpt-rosen-chart--area:not(.rpt-rosen-chart--multi-bar) .rpt-rosen-chart__legend-item--expenses::before,
+.admin-layout .rpt-rosen-chart--bar-gradient:not(.rpt-rosen-chart--multi-bar) .rpt-rosen-chart__legend-item--expenses::before {
+    background: var(--rpt-chart-expenses-dark);
+}
+
+.admin-layout .rpt-rosen-chart--area .rpt-rosen-chart__tick--expenses,
+.admin-layout .rpt-rosen-chart--bar-gradient .rpt-rosen-chart__tick--expenses {
+    color: var(--rpt-chart-expenses-dark);
+}
+
+.admin-layout .rpt-rosen-chart--area .rpt-rosen-chart__expenses-line,
+.admin-layout .rpt-rosen-chart--bar-gradient .rpt-rosen-chart__expenses-line {
+    stroke: var(--rpt-chart-expenses-dark);
+    stroke-width: 2.5;
+}
+
+.admin-layout .rpt-rosen-chart--area:not(.rpt-rosen-chart--multi-bar) .rpt-rosen-chart__swatch--expenses,
+.admin-layout .rpt-rosen-chart--bar-gradient:not(.rpt-rosen-chart--multi-bar) .rpt-rosen-chart__swatch--expenses {
+    width: 12px;
+    height: 3px;
+    border: none;
+    border-radius: 999px;
+    background: var(--rpt-chart-expenses-dark);
+}
+
+.admin-layout .rpt-rosen-chart__axis {
+    position: absolute;
+    top: var(--rpt-rosen-margin-top);
+    bottom: var(--rpt-rosen-margin-bottom);
+    width: var(--rpt-rosen-margin-left);
+    pointer-events: none;
+}
+
+.admin-layout .rpt-rosen-chart__axis--left {
+    left: 0;
+}
+
+.admin-layout .rpt-rosen-chart__axis--right {
+    right: 0;
+    width: var(--rpt-rosen-margin-right);
+}
+
+.admin-layout .rpt-rosen-chart__tick {
+    position: absolute;
+    right: 6px;
+    transform: translateY(-50%);
+    font-size: 0.68rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--rpt-chart-purple-deep);
+    font-weight: 600;
+}
+
+.admin-layout .rpt-rosen-chart__tick--expenses {
+    right: auto;
+    left: 6px;
+    text-align: left;
+    color: var(--rpt-chart-purple);
+}
+
+.admin-layout .rpt-rosen-chart__plot {
+    position: absolute;
+    top: var(--rpt-rosen-margin-top);
+    right: var(--rpt-rosen-margin-right);
+    bottom: var(--rpt-rosen-margin-bottom);
+    left: var(--rpt-rosen-margin-left);
+    overflow: visible;
+}
+
+.admin-layout .rpt-rosen-chart__grid {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    color: rgba(148, 163, 184, 0.35);
+}
+
+.admin-layout .rpt-rosen-chart__grid line {
+    stroke: currentColor;
+    stroke-width: 1;
+    stroke-dasharray: 5 4;
+}
+
+.admin-layout .rpt-rosen-chart__bars {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+}
+
+.admin-layout .rpt-rosen-chart__bars--grouped {
+    overflow: visible;
+}
+
+.admin-layout .rpt-rosen-chart__bar-group {
+    position: absolute;
+    bottom: 0;
+    top: 0;
+    height: 100%;
+}
+
+.admin-layout .rpt-rosen-chart__bar {
+    position: absolute;
+    bottom: 0;
+    border-radius: 6px 6px 0 0;
+    min-height: 0;
+}
+
+.admin-layout .rpt-rosen-chart__bar--multi-sales {
+    background: var(--rpt-chart-purple);
+    border: none;
+}
+
+.admin-layout .rpt-rosen-chart__bar--multi-expenses {
+    background: var(--rpt-chart-purple-light);
+    border: none;
+}
+
+.admin-layout .rpt-rosen-chart__bar--solid {
+    background: var(--rpt-chart-purple);
+}
+
+.admin-layout .rpt-rosen-chart__bar--gradient {
+    background: linear-gradient(180deg, var(--rpt-chart-purple-light), var(--rpt-chart-purple));
+}
+
+.admin-layout .rpt-rosen-chart__area-layer,
+.admin-layout .rpt-rosen-chart__line-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+}
+
+.admin-layout .rpt-rosen-chart__area-layer {
+    z-index: 2;
+}
+
+.admin-layout .rpt-rosen-chart__line-layer {
+    z-index: 4;
+}
+
+.admin-layout .rpt-rosen-chart__area-fill {
+    fill: color-mix(in srgb, var(--rpt-chart-purple) 28%, transparent);
+}
+
+.admin-layout .rpt-rosen-chart__area-line {
+    stroke: var(--rpt-chart-purple-deep);
+    stroke-width: 2;
+}
+
+.admin-layout .rpt-rosen-chart__expenses-line {
+    stroke: var(--rpt-chart-purple-line);
+    stroke-width: 2.25;
+}
+
+.admin-layout .rpt-rosen-chart__hits {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+}
+
+.admin-layout .rpt-rosen-chart__hit {
+    position: absolute;
+    bottom: 0;
+    height: 100%;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: crosshair;
+}
+
+.admin-layout .rpt-rosen-chart__hit:focus-visible {
+    outline: 2px solid var(--rpt-chart-purple);
+    outline-offset: -2px;
+}
+
+.admin-layout .rpt-rosen-chart__labels {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 48px;
+    pointer-events: none;
+}
+
+.admin-layout .rpt-rosen-chart__x-label {
+    position: absolute;
+    top: 8px;
+    transform: translateX(-50%) rotate(-42deg);
+    transform-origin: top center;
+    font-size: 0.66rem;
+    color: var(--admin-text-muted, #64748b);
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.admin-layout .rpt-rosen-chart__tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    transform: translateX(-50%);
+    z-index: 10;
+    min-width: 132px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: var(--admin-card-bg, #fff);
+    border: 1px solid var(--admin-border, #e5e7eb);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    pointer-events: none;
+}
+
+.admin-layout .rpt-rosen-chart__tooltip-date {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--admin-text, #0f172a);
+    margin-bottom: 6px;
+}
+
+.admin-layout .rpt-rosen-chart__tooltip-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--admin-text-muted, #475569);
+}
+
+.admin-layout .rpt-rosen-chart__tooltip-row + .rpt-rosen-chart__tooltip-row {
+    margin-top: 4px;
+}
+
+.admin-layout .rpt-rosen-chart__swatch {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+}
+
+.admin-layout .rpt-rosen-chart__swatch--sales {
+    background: var(--rpt-chart-purple);
+}
+
+.admin-layout .rpt-rosen-chart__swatch--expenses {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: var(--rpt-chart-purple-light);
+    border: 1px solid color-mix(in srgb, var(--rpt-chart-purple) 20%, transparent);
+}
+
+.admin-layout .rpt-rosen-chart:not(.rpt-rosen-chart--multi-bar) .rpt-rosen-chart__swatch--expenses {
+    width: 12px;
+    height: 3px;
+    border: none;
+    border-radius: 999px;
+    background: var(--rpt-chart-purple-line);
+}
+
+/* Gastos del local — layout y tablas */
+.admin-layout .rpt-expenses-card-header {
+    align-items: flex-start;
+}
+
+.admin-layout .rpt-expenses-title-block {
+    min-width: 0;
+    max-width: min(100%, 380px);
+}
+
+.admin-layout .rpt-expenses-title-block h3 {
+    margin: 0;
+}
+
+.admin-layout .rpt-expenses-subtitle {
+    margin: 6px 0 0;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--admin-text-muted, #6b7280);
+    font-weight: 500;
+}
+
+.admin-layout .rpt-expenses-kind-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.admin-layout .rpt-expenses-breakdown {
+    margin: 0 0 12px;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--admin-text-muted, #6b7280);
+}
+
+.admin-layout .rpt-expenses-breakdown strong {
+    color: var(--admin-text, #0f172a);
+}
+
+.admin-layout .rpt-expense-kind-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    background: var(--admin-icon-bg, #f3f4f6);
+    color: var(--admin-text-muted, #6b7280);
+    border: 1px solid var(--admin-border, #e5e7eb);
+    white-space: nowrap;
+}
+
+.admin-layout .rpt-expense-kind-badge--withdrawal {
+    background: rgba(220, 38, 38, 0.08);
+    color: #b91c1c;
+    border-color: rgba(220, 38, 38, 0.22);
+}
+
+.admin-layout .rpt-expenses-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    justify-content: flex-end;
+}
+
+.admin-layout .rpt-btn-register-expense {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 9px 18px;
+    border: none;
+    border-radius: 11px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: #fff;
+    background: linear-gradient(145deg, #059669 0%, #047857 52%, #065f46 100%);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.2) inset,
+        0 1px 2px rgba(5, 150, 105, 0.35),
+        0 4px 12px rgba(5, 150, 105, 0.18);
+    cursor: pointer;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+}
+
+.admin-layout .rpt-btn-register-expense:hover {
+    filter: brightness(1.06);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.22) inset,
+        0 2px 4px rgba(5, 150, 105, 0.4),
+        0 8px 20px rgba(5, 150, 105, 0.22);
+    transform: translateY(-1px);
+}
+
+.admin-layout .rpt-btn-register-expense:active {
+    transform: translateY(0);
+    filter: brightness(0.98);
+}
+
+.admin-layout .rpt-expenses-toolbar-cluster {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+    padding: 6px 8px 6px 10px;
+    border-radius: 12px;
+    background: var(--admin-page-bg, #f4f6f9);
+    border: 1px solid var(--admin-border, #e8ecf1);
+}
+
+.admin-layout .rpt-expenses-agg {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.admin-layout .rpt-expenses-agg-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--admin-text-muted, #6b7280);
+    padding-right: 2px;
+}
+
+.admin-layout .rpt-expenses-agg-tabs {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 2px;
+    border-radius: 8px;
+    background: var(--admin-card-bg, #fff);
+    border: 1px solid var(--admin-border, #e8ecf1);
+}
+
+.admin-layout .rpt-expenses-agg-tabs .rpt-tab {
+    padding: 5px 11px;
+    border-radius: 6px;
+}
+
+.admin-layout .rpt-tab--export-expenses {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 14px !important;
+    border: 1px solid color-mix(in srgb, var(--accent-primary, #3b82f6) 45%, var(--admin-border, #e8ecf1)) !important;
+    background: color-mix(in srgb, var(--accent-primary, #3b82f6) 8%, var(--admin-card-bg, #fff)) !important;
+    color: var(--admin-text, #1a1d21) !important;
+    font-weight: 700 !important;
+}
+
+.admin-layout .rpt-tab--export-expenses:hover:not(:disabled) {
+    border-color: var(--accent-primary, #3b82f6) !important;
+    color: var(--accent-primary, #2563eb) !important;
+}
+
+.admin-layout .rpt-tab--export-expenses:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.admin-layout .rpt-expenses-calendar-hint {
+    margin: 0 0 14px;
+    padding: 10px 12px;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--admin-text-muted, #6b7280);
+    background: color-mix(in srgb, var(--admin-page-bg, #f4f6f9) 85%, var(--admin-card-bg, #fff));
+    border: 1px solid var(--admin-border, #e8ecf1);
+    border-radius: 10px;
+}
+
+.admin-layout .rpt-expenses-blocks {
+    display: flex;
+    flex-direction: column;
+    gap: 1.35rem;
+}
+
+.admin-layout .rpt-expenses-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--admin-border, #e8ecf1) 75%, transparent);
+}
+
+.admin-layout .rpt-expenses-block:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.admin-layout .rpt-expenses-block-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.admin-layout .rpt-expenses-block-meta {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--admin-text-muted, #9ca3af);
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-layout .rpt-expenses-block--withdrawals .rpt-expenses-section-title {
+    color: color-mix(in srgb, var(--admin-text, #1a1d21) 88%, #b45309);
+}
+
+.admin-layout .rpt-expenses-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: stretch;
+}
+
+.admin-layout .rpt-expenses-chart-wrap {
+    min-height: 220px;
+}
+
+.admin-layout .rpt-expenses-empty-chart {
+    padding: 2rem 1rem;
+    text-align: center;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.admin-layout .rpt-expense-panel {
+    overflow: auto;
+    max-height: 280px;
+    border: 1px solid var(--admin-border, #e8ecf1);
+    border-radius: 12px;
+    background: var(--admin-card-bg, #fff);
+    box-shadow: var(--admin-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.04));
+}
+
+.admin-layout .rpt-expense-panel--movements {
+    max-height: 260px;
+}
+
+.admin-layout .rpt-expense-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.admin-layout .rpt-expense-table--movements {
+    font-size: 0.78rem;
+}
+
+.admin-layout .rpt-expense-table thead tr {
+    background: var(--admin-page-bg, #f4f6f9);
+    border-bottom: 1px solid var(--admin-border, #e8ecf1);
+}
+
+.admin-layout .rpt-expense-table th {
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--admin-text-muted, #6b7280);
+}
+
+.admin-layout .rpt-expense-table td {
+    padding: 9px 12px;
+    border-top: 1px solid color-mix(in srgb, var(--admin-border, #e8ecf1) 70%, transparent);
+    color: var(--admin-text, #1a1d21);
+}
+
+.admin-layout .rpt-expense-table__num {
+    text-align: right;
+}
+
+.admin-layout .rpt-expense-table__amount {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-layout .rpt-expense-table__empty {
+    padding: 18px 14px !important;
+    text-align: center;
+    color: var(--admin-text-muted, #6b7280) !important;
+    font-size: 0.82rem;
+}
+
+.admin-layout .rpt-expense-table__nowrap {
+    white-space: nowrap;
+}
+
+.admin-layout .rpt-expense-table__ellipsis {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admin-layout .rpt-expenses-recent-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 1.1rem 0 0.55rem;
+    flex-wrap: wrap;
+}
+
+.admin-layout .rpt-expenses-section-title {
+    margin: 0;
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: var(--admin-text, #1a1d21);
+}
+
+.admin-layout .rpt-expenses-recent-meta {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--admin-text-muted, #9ca3af);
+}
+
+@keyframes rpt-expenses-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.admin-layout .rpt-expenses-spin {
+    animation: rpt-expenses-spin 0.85s linear infinite;
+}
+
+@media (max-width: 960px) {
+    .admin-layout .rpt-expenses-split {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-layout .rpt-expense-panel {
+        max-height: 240px;
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-layout .rpt-expenses-card-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .admin-layout .rpt-expenses-title-block {
+        max-width: none;
+    }
+
+    .admin-layout .rpt-expenses-toolbar {
+        margin-left: 0;
+        justify-content: stretch;
+    }
+
+    .admin-layout .rpt-btn-register-expense {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .admin-layout .rpt-expenses-toolbar-cluster {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .admin-layout .rpt-tab--export-expenses {
+        width: 100%;
+        justify-content: center;
+    }
 }
 
 .admin-layout .rpt-chart-kind {
