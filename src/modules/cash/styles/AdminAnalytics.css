@@ -257,6 +257,19 @@
     padding: 4px 0 0;
 }
 
+/* Gastos del local: una barra por período, sin leyenda ni segundo eje */
+.admin-layout .rpt-rosen-chart--single-bar {
+    --rpt-rosen-margin-right: 12px;
+}
+
+.admin-layout .rpt-rosen-chart--single-bar .rpt-rosen-chart__bar--solid {
+    background: var(--rpt-chart-purple);
+}
+
+.admin-layout .rpt-expenses-chart-wrap {
+    min-height: 220px;
+}
+
 .admin-layout .rpt-rosen-chart {
     --rpt-rosen-margin-top: 22px;
     --rpt-rosen-margin-right: 44px;

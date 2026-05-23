@@ -22,8 +22,8 @@ import { downloadExcel } from '@/shared/utils/exportUtils';
 import { isValidBranchId } from '@/shared/utils/safeIds';
 import { useAdmin } from '../admin/pages/AdminProvider';
 import CashMovementModal from './caja/CashMovementModal';
-import RPTLightweightChart from './charts/RPTLightweightChart';
 import RPTRosenSalesChart from './charts/RPTRosenSalesChart';
+import RPTRosenBarChart from './charts/RPTRosenBarChart';
 
 const CHART_KIND_OPTIONS = [
     { value: 'area', label: 'Área', Icon: AreaChart },
@@ -120,8 +120,9 @@ function buildExpenseChartData(rows, expenseAgg) {
             label: labelForExpenseBucket(k, expenseAgg),
             total: acc.get(k) || 0,
         })),
-        expenseLwSeries: keys.map((k) => ({
-            time: expenseAgg === 'month' ? `${k}-01` : k,
+        expenseBarPoints: keys.map((k) => ({
+            key: k,
+            label: labelForExpenseBucket(k, expenseAgg),
             value: Number(acc.get(k)) || 0,
         })),
     };
@@ -891,12 +892,12 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                         </span>
                     </div>
                     <div className="rpt-expenses-split">
-                        <div className="rpt-chart-wrapper rpt-expenses-chart-wrap">
-                            {operatingChartData.expenseLwSeries.length ? (
-                                <RPTLightweightChart
-                                    data={operatingChartData.expenseLwSeries}
-                                    variant="histogram"
+                        <div className="rpt-chart-wrapper rpt-chart-wrapper--rosen rpt-expenses-chart-wrap">
+                            {operatingChartData.expenseBarPoints.length ? (
+                                <RPTRosenBarChart
+                                    points={operatingChartData.expenseBarPoints}
                                     height={220}
+                                    ariaLabel="Gastos operativos por período"
                                 />
                             ) : (
                                 <div className="rpt-empty rpt-expenses-empty-chart">
@@ -948,12 +949,12 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                         </span>
                     </div>
                     <div className="rpt-expenses-split">
-                        <div className="rpt-chart-wrapper rpt-expenses-chart-wrap">
-                            {withdrawalChartData.expenseLwSeries.length ? (
-                                <RPTLightweightChart
-                                    data={withdrawalChartData.expenseLwSeries}
-                                    variant="histogram"
+                        <div className="rpt-chart-wrapper rpt-chart-wrapper--rosen rpt-expenses-chart-wrap">
+                            {withdrawalChartData.expenseBarPoints.length ? (
+                                <RPTRosenBarChart
+                                    points={withdrawalChartData.expenseBarPoints}
                                     height={220}
+                                    ariaLabel="Retiros de caja por período"
                                 />
                             ) : (
                                 <div className="rpt-empty rpt-expenses-empty-chart">
