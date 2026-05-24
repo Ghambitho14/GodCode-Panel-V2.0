@@ -42,6 +42,11 @@ export function isOnlineOrder(order) {
 	return Boolean(order.payment_method_specific && ONLINE_SPECIFIC_METHODS.has(order.payment_method_specific));
 }
 
+/** Pedido creado en panel/caja (p. ej. Pedido Manual), no menú público online. */
+export function isPanelManualOrder(order) {
+	return Boolean(order) && !isOnlineOrder(order);
+}
+
 /**
  * Texto plano para pegar en WhatsApp o compartir el pedido.
  * @param {Record<string, unknown>} order

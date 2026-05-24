@@ -215,7 +215,7 @@
 .admin-layout .kanban-board.kanban-board--focus-desktop .column-body {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    grid-auto-rows: min-content;
+    grid-auto-rows: minmax(var(--kanban-card-compact-h, 176px), auto);
     gap: 10px;
     align-content: start;
     align-items: start;

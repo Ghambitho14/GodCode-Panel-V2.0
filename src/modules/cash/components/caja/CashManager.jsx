@@ -44,7 +44,14 @@ const ElapsedTime = ({ since }) => {
     return <span>{elapsed}</span>;
 };
 
-const CashManager = ({ showNotify, selectedBranchId, selectedBranch = null, orders = [] }) => {
+const CashManager = ({
+    showNotify,
+    selectedBranchId,
+    selectedBranch = null,
+    orders = [],
+    logoUrl = null,
+    companyName = null,
+}) => {
     const { cashSystem } = useAdmin();
     const {
         activeShift, loading: loadingSystem, movements,
@@ -529,6 +536,8 @@ const CashManager = ({ showNotify, selectedBranchId, selectedBranch = null, orde
                 order={selectedMovementOrder}
                 branch={selectedBranch}
                 showNotify={showNotify}
+                logoUrl={logoUrl}
+                companyName={companyName}
                 onClose={() => setSelectedMovementOrder(null)}
             />
         </div>

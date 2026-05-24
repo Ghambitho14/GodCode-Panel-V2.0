@@ -22,6 +22,7 @@ import AdminNotificationCenter from '../../components/AdminNotificationCenter';
 import AdminBranchSelector from '../../components/AdminBranchSelector';
 import AdminHeaderClock from '../../components/AdminHeaderClock';
 import OrderIntakePauseControl from '../../components/OrderIntakePauseControl';
+import OrderNotificationSoundControl from '../../components/OrderNotificationSoundControl';
 import { isModKey, isTypingContext } from '../utils/keyboardAdmin';
 import { ADMIN_PANEL_TAB_IDS } from '@/shared/constants/admin-panel-tabs';
 import { listBroadcasts, acknowledgeBroadcast as acknowledgeBroadcastService } from '../../services/broadcastsService';
@@ -454,6 +455,8 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
               <RefreshCw size={24} strokeWidth={1.65} className={refreshing ? 'animate-spin' : ''} />
             </button>
 
+            <OrderNotificationSoundControl />
+
             <AdminBranchSelector
               branches={branches}
               selectedBranch={selectedBranch}
@@ -825,6 +828,8 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
                 selectedBranchId={selectedBranch?.id}
                 selectedBranch={selectedBranch}
                 orders={orders}
+                logoUrl={logoUrl}
+                companyName={companyName}
               />
             </React.Suspense>
           </AdminErrorBoundary>

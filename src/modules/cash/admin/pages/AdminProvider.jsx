@@ -12,6 +12,7 @@ import {
 	normalizeStoredNavTabId,
 } from '@/shared/constants/admin-panel-tabs';
 import { playOrderNotificationSound, primeOrderNotificationAudio } from '../utils/playOrderNotificationSound';
+import { shouldPlayOrderSound } from '../../utils/orderNotificationPrefs';
 import { callGuardedRpc } from '../utils/rpcGuard';
 
 const ALL_ADMIN_TABS = ADMIN_PANEL_TAB_IDS;
@@ -639,7 +640,9 @@ export const AdminProvider = ({
 
 			if (isSingleBranch) {
 				showNotify(`Nuevo pedido #${newOrder.id.toString().slice(-4)}`, 'success');
-				playOrderNotificationSound();
+				if (shouldPlayOrderSound(newOrder)) {
+					playOrderNotificationSound();
+				}
 			} else {
 				const branchName =
 					(Array.isArray(branches) ? branches.find((b) => String(b.id) === bid)?.name : null) ||

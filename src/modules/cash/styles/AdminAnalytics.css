@@ -227,7 +227,7 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
     flex-wrap: wrap;
     gap: 12px;
 }
@@ -254,7 +254,7 @@
 
 /* Rosen Charts — ventas + gastos (D3, patrón rosencharts.com) */
 .admin-layout .rpt-chart-wrapper--rosen {
-    padding: 4px 0 0;
+    padding: 14px 0 0;
 }
 
 /* Gastos del local: una barra por período, sin leyenda ni segundo eje */
@@ -271,7 +271,7 @@
 }
 
 .admin-layout .rpt-rosen-chart {
-    --rpt-rosen-margin-top: 22px;
+    --rpt-rosen-margin-top: 40px;
     --rpt-rosen-margin-right: 44px;
     --rpt-rosen-margin-bottom: 52px;
     --rpt-rosen-margin-left: 44px;
@@ -647,6 +647,12 @@
     background: rgba(220, 38, 38, 0.08);
     color: #b91c1c;
     border-color: rgba(220, 38, 38, 0.22);
+}
+
+.admin-layout .rpt-expense-kind-badge--refund {
+    background: rgba(124, 58, 237, 0.08);
+    color: #6d28d9;
+    border-color: rgba(124, 58, 237, 0.22);
 }
 
 .admin-layout .rpt-expenses-toolbar {

@@ -12,6 +12,7 @@ import {
     labelForManualExpenseKind,
     isCashWithdrawal,
     isOperatingLocalExpense,
+    isOrderLinkedExpense,
     EXPENSE_KIND_OPERATING,
 } from '../utils/cashMovementKinds';
 import AdminIconSlot from './AdminIconSlot';
@@ -21,7 +22,7 @@ import { isOnlineOrder, getPaymentSlug, getPaymentLabel } from '@/shared/utils/o
 import { downloadExcel } from '@/shared/utils/exportUtils';
 import { isValidBranchId } from '@/shared/utils/safeIds';
 import { useAdmin } from '../admin/pages/AdminProvider';
-import CashMovementModal from './caja/CashMovementModal';
+import LocalExpenseModal from './expenses/LocalExpenseModal';
 import RPTRosenSalesChart from './charts/RPTRosenSalesChart';
 import RPTRosenBarChart from './charts/RPTRosenBarChart';
 
@@ -137,6 +138,7 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
     const [expensesData, setExpensesData] = useState({ total: 0, prevTotal: 0 });
     const [loadingExpenses, setLoadingExpenses] = useState(false);
     const [manualExpenseRows, setManualExpenseRows] = useState([]);
+    const [refundExpenseRows, setRefundExpenseRows] = useState([]);
     const [expenseAgg, setExpenseAgg] = useState('day');
     const [expenseRangeMode, setExpenseRangeMode] = useState('inform');
     const [exportExpensesLoading, setExportExpensesLoading] = useState(false);
@@ -150,9 +152,9 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
     const [loadingAnalyticsOrders, setLoadingAnalyticsOrders] = useState(false);
     const [expenseRefreshNonce, setExpenseRefreshNonce] = useState(0);
     const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
-    /** @type {'all' | 'operating' | 'cash_withdrawal'} */
+    /** @type {'all' | 'operating' | 'cash_withdrawal' | 'order_refund'} */
     const [expenseKindFilter, setExpenseKindFilter] = useState('all');
-    const { cashSystem } = useAdmin();
+    const { cashSystem, moveOrder } = useAdmin();
 
     const days = filterPeriod === 'all' ? 365 : parseInt(filterPeriod);
 
@@ -248,7 +250,19 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
         return { operating, operatingCount, withdrawals, withdrawalCount };
     }, [manualExpenseRows]);
 
+    const refundBreakdown = useMemo(() => {
+        const rows = refundExpenseRows || [];
+        let total = 0;
+        for (const row of rows) {
+            total += Number(row.amount) || 0;
+        }
+        return { total, count: rows.length };
+    }, [refundExpenseRows]);
+
     const filteredManualExpenseRows = useMemo(() => {
+        if (expenseKindFilter === 'order_refund') {
+            return refundExpenseRows || [];
+        }
         const rows = manualExpenseRows || [];
         if (expenseKindFilter === 'cash_withdrawal') {
             return rows.filter((r) => isCashWithdrawal(r));
@@ -256,8 +270,8 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
         if (expenseKindFilter === 'operating') {
             return rows.filter((r) => isOperatingLocalExpense(r));
         }
-        return rows;
-    }, [manualExpenseRows, expenseKindFilter]);
+        return [...rows, ...(refundExpenseRows || [])];
+    }, [manualExpenseRows, refundExpenseRows, expenseKindFilter]);
 
     const showOperatingExpenseBlock =
         expenseKindFilter === 'all' || expenseKindFilter === 'operating';
@@ -266,13 +280,14 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
 
     const handleExportManualExpensesExcel = async () => {
         if (exportExpensesLoading) return;
-        if (!manualExpenseRows.length) {
+        const exportRows = [...(manualExpenseRows || []), ...(refundExpenseRows || [])];
+        if (!exportRows.length) {
             if (showNotify) showNotify('No hay gastos del local en este período', 'info');
             return;
         }
         setExportExpensesLoading(true);
         try {
-            const rows = [...manualExpenseRows].sort(
+            const rows = [...exportRows].sort(
                 (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
             );
             const dataToExport = rows.map((row) => {
@@ -355,29 +370,29 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
 
     const tryOpenRegisterExpenseModal = useCallback(() => {
         if (!selectedBranch?.id || selectedBranch.id === 'all' || !isValidBranchId(selectedBranch.id)) {
-            if (showNotify) showNotify('Selecciona una sucursal para registrar un gasto.', 'info');
+            if (showNotify) showNotify('Selecciona una sucursal para registrar un movimiento.', 'info');
             return;
         }
         if (!cashSystem?.activeShift) {
-            if (showNotify) showNotify('Abre la caja en esta sucursal para registrar gastos del local.', 'info');
+            if (showNotify) showNotify('Abre la caja en esta sucursal para registrar movimientos del local.', 'info');
             return;
         }
         setIsAddExpenseModalOpen(true);
     }, [selectedBranch, cashSystem?.activeShift, showNotify]);
 
+    const handleAfterExpenseMovement = useCallback(async () => {
+        setExpenseRefreshNonce((n) => n + 1);
+        if (typeof cashSystem.refresh === 'function') {
+            await cashSystem.refresh();
+        }
+    }, [cashSystem]);
+
     const handleConfirmRegisterLocalExpense = useCallback(
         async (type, amount, description, paymentMethod) => {
-            const ok = await cashSystem.addManualMovement(type, amount, description, paymentMethod, {
+            return cashSystem.addManualMovement(type, amount, description, paymentMethod, {
                 expenseKind: EXPENSE_KIND_OPERATING,
                 successMessage: 'Gasto del local registrado',
             });
-            if (ok) {
-                setExpenseRefreshNonce((n) => n + 1);
-                if (typeof cashSystem.refresh === 'function') {
-                    await cashSystem.refresh();
-                }
-            }
-            return ok;
         },
         [cashSystem],
     );
@@ -467,6 +482,7 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                     if (!range) {
                         if (!cancelled) {
                             setManualExpenseRows([]);
+                            setRefundExpenseRows([]);
                             setExpensesData({ total: 0, prevTotal: 0 });
                         }
                         return;
@@ -491,33 +507,45 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                     }
                 }
 
-                const currentRows = await cashService.getManualExpenseMovementsInRange({
+                const fetchParams = {
                     companyId: companyId || null,
                     branchId: selectedBranch?.id,
                     startIso,
                     endIso,
-                });
+                };
+
+                const currentRows = await cashService.getManualExpenseMovementsInRange(fetchParams);
+                const currentRefunds = await cashService.getOrderRefundMovementsInRange(fetchParams);
                 if (cancelled) return;
 
                 let prevRows = [];
+                let prevRefunds = [];
                 if (prevStartIso != null && prevEndIso != null) {
-                    prevRows = await cashService.getManualExpenseMovementsInRange({
+                    const prevParams = {
                         companyId: companyId || null,
                         branchId: selectedBranch?.id,
                         startIso: prevStartIso,
                         endIso: prevEndIso,
-                    });
+                    };
+                    [prevRows, prevRefunds] = await Promise.all([
+                        cashService.getManualExpenseMovementsInRange(prevParams),
+                        cashService.getOrderRefundMovementsInRange(prevParams),
+                    ]);
                 }
                 if (cancelled) return;
 
-                const total = currentRows.reduce((acc, m) => acc + (Number(m.amount) || 0), 0);
-                const prevTotal = prevRows.reduce((acc, m) => acc + (Number(m.amount) || 0), 0);
+                const total = currentRows.reduce((acc, m) => acc + (Number(m.amount) || 0), 0)
+                    + currentRefunds.reduce((acc, m) => acc + (Number(m.amount) || 0), 0);
+                const prevTotal = prevRows.reduce((acc, m) => acc + (Number(m.amount) || 0), 0)
+                    + prevRefunds.reduce((acc, m) => acc + (Number(m.amount) || 0), 0);
                 setManualExpenseRows(currentRows);
+                setRefundExpenseRows(currentRefunds);
                 setExpensesData({ total, prevTotal });
             } catch (err) {
                 console.error('Error fetching expenses for analytics:', err);
                 if (!cancelled) {
                     setManualExpenseRows([]);
+                    setRefundExpenseRows([]);
                     setExpensesData({ total: 0, prevTotal: 0 });
                 }
             } finally {
@@ -808,7 +836,7 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                 <div className="rpt-expenses-toolbar">
                     <button type="button" className="rpt-btn-register-expense" onClick={tryOpenRegisterExpenseModal}>
                         <Plus size={17} strokeWidth={2.25} aria-hidden />
-                        Registrar gasto
+                        Registrar movimiento
                     </button>
                     <div className="rpt-expenses-toolbar-cluster" aria-label="Vista del informe de gastos">
                         <AdminMenuSelect
@@ -838,7 +866,7 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                         type="button"
                         className="rpt-tab rpt-tab--export-expenses"
                         onClick={handleExportManualExpensesExcel}
-                        disabled={exportExpensesLoading || !manualExpenseRows.length}
+                        disabled={exportExpensesLoading || !(manualExpenseRows.length || refundExpenseRows.length)}
                     >
                         {exportExpensesLoading ? (
                             <Loader2 size={14} className="rpt-expenses-spin" aria-hidden />
@@ -859,6 +887,7 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                     ['all', 'Todos'],
                     ['operating', 'Gastos operativos'],
                     ['cash_withdrawal', 'Retiros caja'],
+                    ['order_refund', 'Devoluciones'],
                 ].map(([value, label]) => (
                     <button
                         key={value}
@@ -870,7 +899,7 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                     </button>
                 ))}
             </div>
-            {manualExpenseRows.length > 0 && expenseKindFilter === 'all' ? (
+            {(manualExpenseRows.length > 0 || refundExpenseRows.length > 0) && expenseKindFilter === 'all' ? (
                 <p className="rpt-expenses-breakdown">
                     Total período: <strong>{fmt(expensesData.total)}</strong>
                     {' · '}
@@ -879,6 +908,8 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                     {' · '}
                     Retiros caja: <strong>{fmt(manualExpenseBreakdown.withdrawals)}</strong> (
                     {manualExpenseBreakdown.withdrawalCount})
+                    {' · '}
+                    Devoluciones: <strong>{fmt(refundBreakdown.total)}</strong> ({refundBreakdown.count})
                 </p>
             ) : null}
             <div className="rpt-expenses-blocks">
@@ -1018,7 +1049,7 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                                 <td colSpan={6} className="rpt-expense-table__empty">
                                     {loadingExpenses
                                         ? 'Cargando…'
-                                        : manualExpenseRows.length
+                                        : manualExpenseRows.length || refundExpenseRows.length
                                           ? 'Sin movimientos para este filtro.'
                                           : 'Sin movimientos.'}
                                 </td>
@@ -1042,6 +1073,7 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                                                 ? 'Transf.'
                                                 : String(pm || '—');
                                     const kindLabel = labelForManualExpenseKind(row);
+                                    const isRefund = isOrderLinkedExpense(row);
                                     return (
                                         <tr key={row.id}>
                                             <td className="rpt-expense-table__nowrap">
@@ -1049,7 +1081,7 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                                             </td>
                                             <td>
                                                 <span
-                                                    className={`rpt-expense-kind-badge${isCashWithdrawal(row) ? ' rpt-expense-kind-badge--withdrawal' : ''}`}
+                                                    className={`rpt-expense-kind-badge${isCashWithdrawal(row) ? ' rpt-expense-kind-badge--withdrawal' : ''}${isRefund ? ' rpt-expense-kind-badge--refund' : ''}`}
                                                 >
                                                     {kindLabel}
                                                 </span>
@@ -1173,11 +1205,18 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                 {reportPeriodHeader}
                 {gastosLocalSection}
                 {monthlyExportBlock}
-                <CashMovementModal
+                <LocalExpenseModal
                     isOpen={isAddExpenseModalOpen}
                     onClose={() => setIsAddExpenseModalOpen(false)}
-                    variant="operating_expense"
-                    onConfirm={handleConfirmRegisterLocalExpense}
+                    branchId={selectedBranch?.id}
+                    branchName={selectedBranch?.name || selectedBranch?.label}
+                    activeShift={cashSystem?.activeShift}
+                    onConfirmOperating={handleConfirmRegisterLocalExpense}
+                    registerRefund={cashSystem.registerRefund}
+                    moveOrder={moveOrder}
+                    showNotify={showNotify}
+                    companyId={companyId}
+                    onAfterSuccess={handleAfterExpenseMovement}
                 />
             </div>
         );
@@ -1424,11 +1463,18 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
             </div>
 
             {monthlyExportBlock}
-            <CashMovementModal
+            <LocalExpenseModal
                 isOpen={isAddExpenseModalOpen}
                 onClose={() => setIsAddExpenseModalOpen(false)}
-                variant="operating_expense"
-                onConfirm={handleConfirmRegisterLocalExpense}
+                branchId={selectedBranch?.id}
+                branchName={selectedBranch?.name || selectedBranch?.label}
+                activeShift={cashSystem?.activeShift}
+                onConfirmOperating={handleConfirmRegisterLocalExpense}
+                registerRefund={cashSystem.registerRefund}
+                moveOrder={moveOrder}
+                showNotify={showNotify}
+                companyId={companyId}
+                onAfterSuccess={handleAfterExpenseMovement}
             />
         </div>
     );

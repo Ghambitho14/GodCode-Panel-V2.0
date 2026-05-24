@@ -1,226 +1,204 @@
-/* Panel detalle pedido - lado derecho (usar con portal a document.body) */
-.cash-order-detail-overlay {
-	position: fixed;
-	inset: 0;
-	z-index: 9999;
-	display: flex;
+/* Drawer lateral de detalle de pedido en Caja (reutiliza order-detail-* de OrderCard.css) */
+
+.admin-layout.order-detail-overlay.cash-order-detail-overlay {
 	justify-content: flex-end;
 	align-items: stretch;
-	background: rgba(0, 0, 0, 0.5);
-	-webkit-backdrop-filter: blur(4px);
-	backdrop-filter: blur(4px);
+	padding: 0;
 }
 
-.cash-order-detail-panel {
+.admin-layout.order-detail-overlay.cash-order-detail-overlay .order-detail-panel.cash-order-detail-drawer {
 	width: 100%;
-	max-width: 420px;
+	max-width: min(460px, 100vw);
+	max-height: none;
 	height: 100vh;
 	height: 100svh;
 	height: 100dvh;
+	border-radius: 0;
+	border: none;
+	border-left: 1px solid var(--admin-border);
+	box-shadow: -12px 0 40px rgba(15, 23, 42, 0.18);
+	animation: cashOrderDetailDrawerIn 0.28s ease-out;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+@keyframes cashOrderDetailDrawerIn {
+	from {
+		transform: translateX(100%);
+		opacity: 0.92;
+	}
+	to {
+		transform: translateX(0);
+		opacity: 1;
+	}
+}
+
+/* El modal Kanban usa 3 columnas desde 520px viewport; en drawer siempre apilar */
+.cash-order-detail-drawer .order-detail-meta-grid {
+	grid-template-columns: 1fr !important;
+	gap: 12px;
+	margin-bottom: 20px;
+}
+
+.cash-order-detail-drawer .order-detail-head {
+	padding: 18px 20px;
+}
+
+.cash-order-detail-drawer .order-detail-body {
+	flex: 1;
+	min-height: 0;
 	overflow-y: auto;
-	background: #0f0f0f;
-	border-left: 1px solid rgba(255, 255, 255, 0.1);
-	box-shadow: -8px 0 24px rgba(0, 0, 0, 0.4);
-	animation: cashOrderPanelIn 0.25s ease-out;
+	padding: 16px 20px 12px;
 }
 
-@keyframes cashOrderPanelIn {
-	from { transform: translateX(100%); opacity: 0.9; }
-	to { transform: translateX(0); opacity: 1; }
+.cash-order-detail-drawer .order-detail-section {
+	margin-bottom: 20px;
 }
 
-.cash-order-detail-panel-header {
-	display: flex;
-	align-items: flex-start;
-	justify-content: space-between;
-	padding: calc(18px + env(safe-area-inset-top)) 20px 18px;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-	background: #0d0d0d;
-	position: -webkit-sticky;
-	position: sticky;
-	top: 0;
-	z-index: 1;
+.cash-order-detail-drawer .order-detail-card .order-detail-label {
+	padding: 10px 16px 8px;
 }
 
-.cash-order-detail-panel-header h3 {
-	margin: 0;
-	font-size: 1.1rem;
-	font-weight: 800;
-	color: #fff;
+.cash-order-detail-drawer .order-detail-card-main {
+	min-height: 0;
+	padding: 12px 16px;
+	gap: 6px;
 }
 
-.cash-order-detail-panel-date {
-	display: block;
-	font-size: 0.75rem;
-	color: #94a3b8;
-	margin-top: 4px;
+.cash-order-detail-drawer .order-detail-card-foot[aria-hidden] {
+	display: none;
 }
 
-.cash-order-detail-panel-close {
-	width: 36px;
-	height: 36px;
-	border: 1px solid rgba(255, 255, 255, 0.1);
-	border-radius: 8px;
-	background: rgba(255, 255, 255, 0.05);
-	color: #94a3b8;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	cursor: pointer;
+.cash-order-detail-drawer .order-detail-card-foot {
+	padding: 10px 16px;
 }
 
-.cash-order-detail-panel-close:hover {
-	color: #fff;
-	background: rgba(255, 255, 255, 0.1);
+.cash-order-detail-drawer .order-detail-value {
+	font-size: 0.95rem;
+	line-height: 1.4;
+	word-break: break-word;
 }
 
-.cash-order-detail-panel-body {
-	padding: 16px 20px calc(16px + env(safe-area-inset-bottom));
+.cash-order-detail-drawer .order-detail-facts li {
+	font-size: 0.84rem;
+	line-height: 1.45;
+}
+
+.cash-order-detail-drawer .order-detail-block--address .order-detail-label {
+	padding-left: 0;
+	padding-right: 0;
+}
+
+.cash-order-detail-drawer .order-detail-address-row {
+	grid-template-columns: 1fr;
+	gap: 4px;
+	padding: 12px 16px;
+}
+
+.cash-order-detail-drawer .order-detail-block--address .order-detail-maps-link {
+	margin: 12px 0 0;
+	width: 100%;
+}
+
+.cash-order-detail-drawer .order-detail-handoff-block {
+	margin-bottom: 4px;
+}
+
+.cash-order-detail-drawer .order-detail-ticket-actions {
+	gap: 10px;
+}
+
+.cash-order-detail-foot {
 	display: flex;
 	flex-direction: column;
 	gap: 14px;
+	padding: 16px 20px calc(16px + env(safe-area-inset-bottom));
+	background: var(--admin-card-bg);
+	border-top: 1px solid var(--admin-border);
+	flex-shrink: 0;
 }
 
-.cash-order-detail-badges {
+.cash-order-detail-foot .cash-order-detail-total-row {
+	margin: 0;
+	padding: 14px 16px;
+	border: 1px solid var(--admin-border);
+	border-radius: 12px;
+	background: var(--admin-icon-bg);
+}
+
+.cash-order-detail-note-branch {
+	margin: 0 0 8px;
+	font-size: 0.82rem;
+}
+
+.cash-order-detail-status-sync {
+	font-size: 0.78rem;
+	font-weight: 500;
+}
+
+.cash-order-detail-phone-row {
 	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-}
-
-.cash-order-detail-badge {
-	padding: 6px 12px;
-	border-radius: 999px;
-	font-size: 0.7rem;
-	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.03em;
-}
-
-.cash-order-detail-badge-status {
-	background: rgba(56, 189, 248, 0.12);
-	color: #38bdf8;
-	border: 1px solid rgba(56, 189, 248, 0.25);
-}
-
-.cash-order-detail-badge-status.cash-order-detail-badge-status--cancelled {
-	background: rgba(239, 68, 68, 0.15);
-	color: #f87171;
-	border-color: rgba(239, 68, 68, 0.35);
-}
-
-.cash-order-detail-badge-payment {
-	background: rgba(255, 255, 255, 0.06);
-	color: #cbd5e1;
-	border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.cash-order-detail-badge-payment--cash {
-	background: rgba(34, 197, 94, 0.15);
-	color: #4ade80;
-	border-color: rgba(34, 197, 94, 0.35);
-}
-
-.cash-order-detail-badge-payment--transfer {
-	background: rgba(234, 179, 8, 0.15);
-	color: #facc15;
-	border-color: rgba(234, 179, 8, 0.35);
-}
-
-.cash-order-detail-badge-payment--card {
-	background: rgba(59, 130, 246, 0.15);
-	color: #60a5fa;
-	border-color: rgba(59, 130, 246, 0.35);
-}
-
-.cash-order-detail-block {
-	border: 1px solid rgba(255, 255, 255, 0.06);
-	border-radius: 10px;
-	padding: 12px 14px;
-	background: rgba(255, 255, 255, 0.02);
-}
-
-.cash-order-detail-label {
-	font-size: 0.7rem;
-	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
-	color: #94a3b8;
-	margin-bottom: 6px;
-}
-
-.cash-order-detail-value {
-	font-size: 0.95rem;
-	font-weight: 600;
-	color: #fff;
-}
-
-.cash-order-detail-sub {
-	font-size: 0.8rem;
-	color: #94a3b8;
-	margin-top: 2px;
-}
-
-.cash-order-detail-items {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-}
-
-.cash-order-detail-item-row {
-	display: flex;
-	justify-content: space-between;
 	align-items: center;
-	font-size: 0.85rem;
-	color: #e2e8f0;
+	gap: 8px;
+	flex-wrap: wrap;
 }
 
-.cash-order-detail-item-row strong {
-	color: #fff;
-	font-weight: 700;
-	font-variant-numeric: tabular-nums;
+.cash-order-detail-phone-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--admin-accent, #3b82f6);
+	text-decoration: none;
+	font-weight: 600;
 }
 
-.cash-order-detail-note {
-	font-size: 0.85rem;
-	color: #cbd5e1;
-	white-space: pre-wrap;
+.cash-order-detail-phone-link:hover {
+	text-decoration: underline;
 }
 
-.cash-order-detail-summary {
-	border-radius: 10px;
-	padding: 12px 14px;
-	border: 1px solid rgba(255, 255, 255, 0.1);
-	background: rgba(255, 255, 255, 0.04);
+.cash-order-detail-wa-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 999px;
+	border: 1px solid rgba(34, 197, 94, 0.35);
+	background: rgba(34, 197, 94, 0.1);
+	color: #16a34a;
+	text-decoration: none;
 }
 
-.cash-order-detail-summary--cash {
-	border-color: rgba(34, 197, 94, 0.35);
-	background: rgba(34, 197, 94, 0.08);
-}
-.cash-order-detail-summary--cash .cash-order-detail-total { color: #4ade80; }
-
-.cash-order-detail-summary--transfer {
-	border-color: rgba(234, 179, 8, 0.35);
-	background: rgba(234, 179, 8, 0.08);
-}
-.cash-order-detail-summary--transfer .cash-order-detail-total { color: #facc15; }
-
-.cash-order-detail-summary--card {
-	border-color: rgba(59, 130, 246, 0.35);
-	background: rgba(59, 130, 246, 0.08);
-}
-.cash-order-detail-summary--card .cash-order-detail-total { color: #60a5fa; }
-
-.cash-order-detail-summary--cancelled {
-	border-color: rgba(239, 68, 68, 0.35);
-	background: rgba(239, 68, 68, 0.08);
-}
-.cash-order-detail-summary--cancelled .cash-order-detail-total { color: #f87171; }
-
-.cash-order-detail-total {
-	font-size: 1.2rem;
-	font-weight: 900;
-	color: #fff;
-	font-variant-numeric: tabular-nums;
+.cash-order-detail-wa-btn:hover {
+	background: rgba(34, 197, 94, 0.18);
 }
 
+.cash-order-detail-wa-glyph {
+	width: 16px;
+	height: 16px;
+}
+
+.cash-order-detail-wa-glyph--btn {
+	width: 18px;
+	height: 18px;
+}
+
+@media (max-width: 480px) {
+	.admin-layout.order-detail-overlay.cash-order-detail-overlay {
+		padding: 0;
+		align-items: stretch;
+	}
+
+	.admin-layout.order-detail-overlay.cash-order-detail-overlay .order-detail-panel.cash-order-detail-drawer {
+		max-width: 100%;
+		border-radius: 0;
+	}
+
+	.cash-order-detail-drawer .order-detail-head,
+	.cash-order-detail-drawer .order-detail-body,
+	.cash-order-detail-foot {
+		padding-left: 16px;
+		padding-right: 16px;
+	}
+}

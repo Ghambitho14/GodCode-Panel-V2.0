@@ -57,11 +57,22 @@ export function isOrderLinkedExpense(m) {
 }
 
 /**
+ * Etiqueta UI para devolución de pedido en caja.
+ * @param {Record<string, unknown> | null | undefined} m
+ * @returns {string}
+ */
+export function labelForOrderRefund(m) {
+	if (!isOrderLinkedExpense(m)) return '—';
+	return 'Devolución pedido';
+}
+
+/**
  * Etiqueta UI para tipo de egreso manual.
  * @param {Record<string, unknown> | null | undefined} m
  * @returns {string}
  */
 export function labelForManualExpenseKind(m) {
+	if (isOrderLinkedExpense(m)) return labelForOrderRefund(m);
 	if (!isManualLocalExpense(m)) return '—';
 	if (isCashWithdrawal(m)) return 'Retiro caja';
 	if (isOperatingLocalExpense(m)) return 'Gasto operativo';

@@ -255,6 +255,41 @@ export const cashService = {
 		return data || [];
 	},
 
+	getOrderRefundMovementsInRange: async ({
+		companyId = null,
+		branchId = null,
+		startIso,
+		endIso = null,
+		limit = 5000,
+	}) => {
+		if (!startIso) return [];
+		let q = supabase
+			.from(TABLES.cash_movements)
+			.select(
+				`id, type, amount, created_at, description, payment_method, order_id, expense_kind, shift_id, ${TABLES.cash_shifts}!inner(branch_id, company_id)`,
+			)
+			.eq('type', 'expense')
+			.not('order_id', 'is', null)
+			.gte('created_at', startIso)
+			.order('created_at', { ascending: true })
+			.limit(limit);
+
+		if (endIso) {
+			q = q.lt('created_at', endIso);
+		}
+
+		if (companyId) {
+			q = q.eq(`${TABLES.cash_shifts}.company_id`, companyId);
+		}
+		if (branchId && branchId !== 'all') {
+			q = q.eq(`${TABLES.cash_shifts}.branch_id`, branchId);
+		}
+
+		const { data, error } = await q;
+		if (error) throw error;
+		return data || [];
+	},
+
 	getPastShifts: async (limit = 20, branchId = null) => {
 		let query = supabase
 			.from(TABLES.cash_shifts)
