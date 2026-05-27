@@ -1,4 +1,4 @@
-import { isOnlineOrder } from '@/shared/utils/orderUtils';
+import { isMenuOrder } from '@/shared/utils/orderUtils';
 
 export const ORDER_SOUND_STORAGE_KEY = 'godcode-order-sound-mode';
 export const ORDER_SOUND_MODE_CHANGE_EVENT = 'order-sound-mode-change';
@@ -41,7 +41,7 @@ export function setOrderSoundMode(mode) {
 export function shouldPlayOrderSound(order) {
     const mode = getOrderSoundMode();
     if (mode === 'off') return false;
-    if (mode === 'online_only') return isOnlineOrder(order);
+    if (mode === 'online_only') return isMenuOrder(order);
     return true;
 }
 

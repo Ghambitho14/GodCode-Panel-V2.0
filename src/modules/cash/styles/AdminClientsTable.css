@@ -542,6 +542,37 @@
     border-color: color-mix(in srgb, var(--accent-primary) 25%, var(--admin-border));
 }
 
+.admin-layout .history-card--clickable {
+    cursor: pointer;
+}
+
+.admin-layout .history-card--clickable:hover {
+    border-color: color-mix(in srgb, var(--accent-primary) 40%, var(--admin-border));
+    background: color-mix(in srgb, var(--accent-primary) 4%, var(--admin-card-bg, #fff));
+    box-shadow: var(--admin-shadow-md, 0 4px 12px rgba(15, 23, 42, 0.08));
+    transform: translateY(-1px);
+}
+
+.admin-layout .history-card--clickable:active {
+    transform: translateY(0);
+}
+
+.admin-layout .history-card--clickable:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}
+
+.admin-layout .history-card__view-detail {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--accent-primary);
+    margin-right: auto;
+    margin-left: 8px;
+}
+
 .admin-layout .history-card-header {
     display: flex;
     justify-content: space-between;

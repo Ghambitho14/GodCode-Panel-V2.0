@@ -467,6 +467,34 @@
     background: rgba(15, 23, 42, 0.04);
 }
 
+.admin-layout .cash-container .movement-row--clickable {
+    cursor: pointer;
+}
+
+.admin-layout .cash-container .movement-row--clickable:hover {
+    background: rgba(56, 189, 248, 0.08);
+}
+
+.admin-layout .cash-container .movement-row--clickable:focus-visible {
+    outline: 2px solid var(--c-balance);
+    outline-offset: -2px;
+}
+
+.admin-layout .cash-container .cash-shift-detail-movement-view-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 8px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--c-balance);
+    opacity: 0.85;
+}
+
+.admin-layout .cash-container .movement-row--clickable:hover .cash-shift-detail-movement-view-hint {
+    opacity: 1;
+}
+
 /* ===========================================
    7. BADGES & STATUS
    =========================================== */

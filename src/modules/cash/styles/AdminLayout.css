@@ -945,15 +945,22 @@
 		min-width: 0;
 	}
 
-	/* Centro de notificaciones: primera columna (1fr), alineado al inicio para equilibrar sucursal a la derecha */
-	.admin-layout .header-actions--mobile-toolbar > .admin-notification-center {
+	/* Campana + sonido: primera columna, misma fila que reloj y sucursal */
+	.admin-layout .header-actions--mobile-toolbar .header-actions-leading {
+		display: flex;
 		grid-column: 1;
 		grid-row: 1;
+		align-items: center;
+		gap: clamp(6px, 1.5vw, 10px);
 		justify-self: start;
 		align-self: center;
-		width: auto;
 		min-width: 0;
 		overflow: visible;
+	}
+
+	.admin-layout .header-actions--mobile-toolbar .header-actions-leading > .admin-notification-center,
+	.admin-layout .header-actions--mobile-toolbar .header-actions-leading > .order-sound-control {
+		flex-shrink: 0;
 	}
 
 	/*
@@ -1579,6 +1586,11 @@ body:has(.admin-layout),
 	border-radius: 10px;
 }
 
+/* Campana + sonido: en escritorio los hijos participan en el flex del header */
+.admin-layout .header-actions-leading {
+	display: contents;
+}
+
 /* Control sonido de pedidos (header) */
 .admin-layout .order-sound-control {
 	position: relative;
@@ -1684,7 +1696,7 @@ body:has(.admin-layout),
 }
 
 @media (max-width: 1024px) {
-	.admin-layout .header-actions--mobile-toolbar .order-sound-control__popover {
+	.admin-layout .header-actions--mobile-toolbar .header-actions-leading .order-sound-control__popover {
 		left: 0;
 		right: auto;
 		width: min(
@@ -1693,13 +1705,6 @@ body:has(.admin-layout),
 		);
 		max-width: calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - 16px);
 		box-sizing: border-box;
-	}
-
-	.admin-layout .header-actions--mobile-toolbar > .order-sound-control {
-		grid-column: 1;
-		grid-row: 2;
-		justify-self: start;
-		align-self: center;
 	}
 }
 

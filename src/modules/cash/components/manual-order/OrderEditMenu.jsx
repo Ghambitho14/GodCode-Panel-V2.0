@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { ShoppingBag, User, CreditCard } from 'lucide-react';
+import { ShoppingBag, User } from 'lucide-react';
 
 /**
  * Menú desplegable para elegir qué sección del pedido editar (mismo patrón que tickets).
@@ -24,8 +24,7 @@ const OrderEditMenu = ({ isOpen, onClose, onSelect, anchorRef }) => {
 
     const options = [
         { step: 1, label: 'Productos del pedido', Icon: ShoppingBag },
-        { step: 2, label: 'Cliente y entrega', Icon: User },
-        { step: 3, label: 'Pago y total', Icon: CreditCard },
+        { step: 2, label: 'Cliente, entrega y pago', Icon: User },
     ];
 
     return (

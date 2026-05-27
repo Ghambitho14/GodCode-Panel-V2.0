@@ -2093,7 +2093,7 @@
 }
 
 .manual-order-input-wrapper:has(.manual-order-input-icon) .manual-order-input {
-    padding-left: 36px;
+    padding-left: 40px;
     color: #000;
     font-weight: 600;
 }
@@ -2176,27 +2176,30 @@
     }
 }
 
-/* === PASO 2 WIZARD: layout centrado y tarjetas === */
-.manual-order-step-2 .manual-order-side-panel {
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    padding: clamp(16px, 3vh, 32px) 20px;
+/* === PASO 2 WIZARD: checkout — columna cliente === */
+.manual-order-step-2 .manual-order-checkout-col--client {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
     overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .manual-order-client-stage {
     width: 100%;
-    max-width: min(920px, calc(100% - 16px));
+    max-width: 100%;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 14px;
     flex-shrink: 0;
 }
 
-.manual-order-step-2 .manual-order-client-columns {
-    gap: 18px;
+/* En checkout 3 columnas: apilar datos + retiro (evita columnas ultra estrechas) */
+.manual-order-step-2 .manual-order-checkout-col--client .manual-order-client-columns {
+    grid-template-columns: 1fr;
+    gap: 14px;
     align-items: stretch;
 }
 
@@ -2224,18 +2227,33 @@
 }
 
 .manual-order-step-2 .manual-order-client-col .manual-order-input {
-    padding: 12px 14px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    padding-right: 14px;
     font-size: 14px;
 }
 
+.manual-order-step-2 .manual-order-client-col .manual-order-input-wrapper:not(:has(.manual-order-input-icon)) .manual-order-input {
+    padding-left: 14px;
+}
+
+.manual-order-step-2 .manual-order-client-col .manual-order-input-wrapper:has(.manual-order-input-icon) .manual-order-input {
+    padding-left: 40px;
+}
+
 .manual-order-step-2 .manual-order-order-type-toggle {
-    gap: 12px;
+    gap: 10px;
     margin-top: 10px;
 }
 
 .manual-order-step-2 .manual-order-order-type-btn {
-    padding: 11px 10px;
+    padding: 12px 12px;
     font-size: 12px;
+    min-height: 44px;
+}
+
+.manual-order-step-2 .manual-order-checkout-col--client .manual-order-section-title {
+    font-size: 11px;
 }
 
 .manual-order-step-2 .manual-order-section--note {
@@ -2258,26 +2276,7 @@
     padding: 12px 14px;
 }
 
-@media (min-width: 901px) and (min-height: 640px) {
-    .manual-order-step-2 .manual-order-side-panel {
-        align-items: center;
-        padding-block: clamp(20px, 4vh, 36px);
-    }
-
-    .manual-order-step-2 .manual-order-client-col {
-        min-height: 220px;
-    }
-}
-
 @media (max-width: 900px) {
-    .manual-order-step-2 .manual-order-side-panel {
-        padding: 16px;
-    }
-
-    .manual-order-client-stage {
-        max-width: 100%;
-    }
-
     .manual-order-step-2 .manual-order-client-col,
     .manual-order-step-2 .manual-order-section--note {
         padding: 16px;
@@ -2896,57 +2895,20 @@
     overflow: hidden;
 }
 
-.manual-order-stage > .manual-order-products,
-.manual-order-stage > .manual-order-side-panel {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.28s ease;
-    will-change: transform;
-}
-
 .manual-order-step-1 .manual-order-stage > .manual-order-products {
-    transform: translateX(0);
-    opacity: 1;
-    pointer-events: auto;
-    visibility: visible;
-    z-index: 2;
+    flex: 1;
+    min-height: 0;
 }
 
-.manual-order-step-1 .manual-order-stage > .manual-order-side-panel {
-    transform: translateX(100%);
-    opacity: 0;
-    pointer-events: none;
-    visibility: hidden;
-    z-index: 1;
-}
-
-.manual-order-step-2 .manual-order-stage > .manual-order-products {
-    transform: translateX(-100%);
-    opacity: 0;
-    pointer-events: none;
-    visibility: hidden;
-    z-index: 1;
-}
-
-.manual-order-step-2 .manual-order-stage > .manual-order-side-panel {
-    transform: translateX(0);
-    opacity: 1;
-    pointer-events: auto;
-    visibility: visible;
-    z-index: 2;
-}
-
-.manual-order-step-3 .manual-order-stage {
+.manual-order-step-2 .manual-order-stage {
     display: none;
 }
 
-.manual-order-step-3 .manual-order-body {
+.manual-order-step-2 .manual-order-body {
     justify-content: center;
 }
 
-.manual-order-step-3 .manual-order-sidebar {
+.manual-order-step-2 .manual-order-sidebar {
     flex: 1;
     width: 100%;
     min-width: 0;
@@ -2961,32 +2923,40 @@
 }
 
 @media (min-width: 768px) {
-    .manual-order-step-3 .manual-order-sidebar {
+    .manual-order-step-2 .manual-order-sidebar {
         width: 100%;
         min-width: 0;
     }
 }
 
 @media (min-width: 901px) and (min-height: 640px) {
-    .manual-order-step-3 .manual-order-sidebar {
+    .manual-order-step-2 .manual-order-sidebar {
         align-items: center;
         padding-block: clamp(20px, 4vh, 36px);
     }
 }
 
-/* === PASO 3: checkout en 2 columnas === */
-.manual-order-payment-stage {
+/* === PASO 2: checkout en 3 columnas === */
+.manual-order-checkout-stage {
     width: 100%;
-    max-width: min(920px, calc(100% - 16px));
+    max-width: min(1280px, calc(100% - 16px));
     margin: 0 auto;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
+    grid-template-columns: minmax(280px, 1.15fr) minmax(240px, 1fr) minmax(240px, 1fr);
+    gap: 16px;
     align-items: stretch;
     flex: 1;
     min-height: 0;
 }
 
+@media (min-width: 1200px) {
+    .manual-order-checkout-stage {
+        grid-template-columns: minmax(320px, 1.2fr) minmax(260px, 1fr) minmax(260px, 1fr);
+        gap: 18px;
+    }
+}
+
+.manual-order-checkout-col,
 .manual-order-payment-col {
     background: var(--admin-card-bg, #fff);
     border: 1px solid var(--admin-border, #e2e8f0);
@@ -2999,6 +2969,7 @@
     overflow: hidden;
 }
 
+.manual-order-checkout-col--summary .manual-order-summary-section,
 .manual-order-payment-col--summary .manual-order-summary-section {
     flex: 1;
     min-height: 0;
@@ -3007,12 +2978,14 @@
     padding: 0;
 }
 
+.manual-order-checkout-col--summary .manual-order-summary-head,
 .manual-order-payment-col--summary .manual-order-summary-head {
     position: sticky;
     top: 0;
     z-index: 2;
 }
 
+.manual-order-checkout-col--payment,
 .manual-order-payment-col--checkout {
     padding: 18px 20px;
     overflow-y: auto;
@@ -3223,21 +3196,24 @@
 }
 
 @media (max-width: 900px) {
+    .manual-order-checkout-stage,
     .manual-order-payment-stage {
         grid-template-columns: 1fr;
         max-width: 100%;
     }
 
+    .manual-order-checkout-col--summary,
     .manual-order-payment-col--summary {
         max-height: 38vh;
     }
 }
 
 @media (max-width: 767px) {
-    .manual-order-step-3 .manual-order-sidebar {
+    .manual-order-step-2 .manual-order-sidebar {
         padding: 12px;
     }
 
+    .manual-order-checkout-col--payment,
     .manual-order-payment-col--checkout {
         padding: 14px 16px;
     }
@@ -3347,7 +3323,7 @@
     letter-spacing: 0.04em;
 }
 
-.manual-order-step-3 .manual-order-footer {
+.manual-order-step-2 .manual-order-footer {
     position: static;
 }
 
@@ -3379,7 +3355,7 @@
         min-width: 0;
     }
 
-    .manual-order-step-3 .manual-order-sidebar {
+    .manual-order-step-2 .manual-order-sidebar {
         flex: 1;
         max-height: none;
         max-width: none;

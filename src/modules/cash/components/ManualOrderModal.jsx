@@ -51,6 +51,8 @@ function normalizeCartUpsellCatalog(catalog, kind) {
     });
 }
 
+const WIZARD_STEPS = 2;
+
 const ManualOrderModal = ({
     isOpen,
     onClose,
@@ -105,7 +107,7 @@ const ManualOrderModal = ({
         submitOrder, resetOrder, getInputStyle,
     } = isEditMode ? editHook : createHook;
 
-    // --- WIZARD (3 pasos en todos los tamaños) ---
+    // --- WIZARD (2 pasos: Productos + Checkout) ---
     const [orderStep, setOrderStep] = useState(1);
     const [isCompactNav, setIsCompactNav] = useState(() => {
         if (typeof window === 'undefined') return false;
@@ -120,7 +122,9 @@ const ManualOrderModal = ({
         if (!isEditMode) return 1;
         const n = Number(initialStep);
         if (!Number.isFinite(n)) return 1;
-        return Math.min(3, Math.max(1, Math.round(n)));
+        const rounded = Math.round(n);
+        const legacyMapped = rounded >= 3 ? 2 : rounded;
+        return Math.min(WIZARD_STEPS, Math.max(1, legacyMapped));
     };
 
     useEffect(() => {
@@ -295,26 +299,14 @@ const ManualOrderModal = ({
     };
 
     const hasCartItems = (manualOrder.items?.length ?? 0) > 0;
-    const isCustomerStageValid = () => {
-        const hasClientName = manualOrder.client_name && manualOrder.client_name.trim().length >= 3;
-        if (isEditMode) return Boolean(hasClientName);
-        return Boolean(hasClientName && rutValid && phoneValid);
-    };
 
     const goNextStep = () => {
-        if (orderStep === 1) {
-            if (!hasCartItems) {
-                showNotify?.('Agrega al menos un producto al carrito.', 'warning');
-                return;
-            }
-            setOrderStep(2);
-        } else if (orderStep === 2) {
-            if (!isCustomerStageValid()) {
-                showNotify?.('Completa nombre, RUT y teléfono antes de continuar.', 'warning');
-                return;
-            }
-            setOrderStep(3);
+        if (orderStep !== 1) return;
+        if (!hasCartItems) {
+            showNotify?.('Agrega al menos un producto al carrito.', 'warning');
+            return;
         }
+        setOrderStep(2);
     };
 
     const goPrevStep = () => {
@@ -357,7 +349,7 @@ const ManualOrderModal = ({
         return text.replace(/[<>]/g, '');
     };
 
-    const stepLabels = ['Productos', 'Cliente', 'Pago'];
+    const stepLabels = ['Productos', 'Cliente y pago'];
 
     const noteSection = (
         <div className="manual-order-section manual-order-section--note">
@@ -413,16 +405,7 @@ const ManualOrderModal = ({
         />
     );
 
-    const sidePanelSection = (
-        <div className="manual-order-side-panel">
-            <div className="manual-order-client-stage">
-                {clientSection}
-                {noteSection}
-            </div>
-        </div>
-    );
-
-    const showEditSaveOnFooter = isEditMode && orderStep < 3;
+    const showEditSaveOnFooter = isEditMode && orderStep === 1;
 
     const wizardNavButtons = (
         <div
@@ -447,7 +430,7 @@ const ManualOrderModal = ({
                         type="button"
                         className="manual-order-steps-nav__btn manual-order-steps-nav__btn--next-secondary"
                         onClick={goNextStep}
-                        disabled={orderStep === 1 ? !hasCartItems : !isCustomerStageValid()}
+                        disabled={!hasCartItems}
                     >
                         Siguiente
                     </button>
@@ -460,18 +443,16 @@ const ManualOrderModal = ({
                         {loading ? 'GUARDANDO...' : 'Guardar cambios'}
                     </button>
                 </>
-            ) : orderStep < 3 ? (
+            ) : orderStep === 1 ? (
                 <button
                     type="button"
                     className="manual-order-steps-nav__btn manual-order-steps-nav__btn--next"
                     onClick={goNextStep}
-                    disabled={orderStep === 1 ? !hasCartItems : !isCustomerStageValid()}
+                    disabled={!hasCartItems}
                 >
                     Siguiente
                 </button>
-            ) : (
-                <span className="manual-order-steps-nav__hint">Revisa y confirma abajo</span>
-            )}
+            ) : null}
         </div>
     );
 
@@ -504,7 +485,7 @@ const ManualOrderModal = ({
 
     const sidebarSection = (
         <div className="manual-order-sidebar">
-            {orderStep < 3 ? (
+            {orderStep === 1 ? (
                 <>
                     <OrderSummary {...orderSummaryProps} />
                     <div className="manual-order-footer">
@@ -517,11 +498,17 @@ const ManualOrderModal = ({
                     </div>
                 </>
             ) : (
-                <div className="manual-order-payment-stage">
-                    <div className="manual-order-payment-col manual-order-payment-col--summary">
+                <div className="manual-order-checkout-stage">
+                    <div className="manual-order-checkout-col manual-order-checkout-col--client">
+                        <div className="manual-order-client-stage">
+                            {clientSection}
+                            {noteSection}
+                        </div>
+                    </div>
+                    <div className="manual-order-checkout-col manual-order-checkout-col--summary">
                         <OrderSummary {...orderSummaryProps} />
                     </div>
-                    <div className="manual-order-payment-col manual-order-payment-col--checkout">
+                    <div className="manual-order-checkout-col manual-order-checkout-col--payment">
                         <PaymentDetails {...paymentDetailsProps} />
                     </div>
                 </div>
@@ -550,7 +537,7 @@ const ManualOrderModal = ({
 
                 <div
                     className={`manual-order-steps-progress${isEditMode ? ' manual-order-steps-progress--editable' : ''}`}
-                    aria-label={`Paso ${orderStep} de 3`}
+                    aria-label={`Paso ${orderStep} de ${WIZARD_STEPS}`}
                 >
                     {stepLabels.map((label, idx) => {
                         const n = idx + 1;
@@ -601,14 +588,13 @@ const ManualOrderModal = ({
                                 return manualOrder.items.find((i) => String(i.id) === key)?.quantity || 0;
                             }}
                         />
-                        {sidePanelSection}
                     </div>
                     {sidebarSection}
                 </div>
 
                 {isCompactNav && (
                     <div className="manual-order-steps-nav">
-                        {orderStep === 3 ? (
+                        {orderStep === 2 ? (
                             <button
                                 type="button"
                                 className="manual-order-steps-nav__btn manual-order-steps-nav__btn--back"

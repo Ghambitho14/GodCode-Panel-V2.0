@@ -18,7 +18,7 @@ import {
 import AdminIconSlot from './AdminIconSlot';
 import AdminMenuSelect from './AdminMenuSelect';
 import { formatCurrency } from '@/shared/utils/formatters';
-import { isOnlineOrder, getPaymentSlug, getPaymentLabel } from '@/shared/utils/orderUtils';
+import { isMenuOrder, getPaymentSlug, getPaymentLabel } from '@/shared/utils/orderUtils';
 import { downloadExcel } from '@/shared/utils/exportUtils';
 import { isValidBranchId } from '@/shared/utils/safeIds';
 import { useAdmin } from '../admin/pages/AdminProvider';
@@ -579,8 +579,8 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
 
         const filterByTab = (o) => {
             if (chartTab === 'all') return true;
-            if (chartTab === 'online') return isOnlineOrder(o);
-            if (chartTab === 'store') return !isOnlineOrder(o);
+            if (chartTab === 'online') return isMenuOrder(o);
+            if (chartTab === 'store') return !isMenuOrder(o);
             return true;
         };
 
@@ -1352,7 +1352,7 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                             {[
                                 { label: 'Efectivo', value: paymentBreakdown.cash, Icon: DollarSign, color: '#22c55e' },
                                 { label: 'Tarjeta', value: paymentBreakdown.card, Icon: CreditCard, color: '#3b82f6' },
-                                { label: 'Transferencia', value: paymentBreakdown.online, Icon: Smartphone, color: '#a855f7' },
+                                { label: 'Pago online', value: paymentBreakdown.online, Icon: Smartphone, color: '#a855f7' },
                             ].map(pm => {
                                 const pct = kpis.total > 0 ? Math.round((pm.value / kpis.total) * 100) : 0;
                                 return (

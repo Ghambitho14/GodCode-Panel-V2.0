@@ -10,6 +10,7 @@ import AdminKanban from '../../components/AdminKanban';
 import ManualOrderModal from '../../components/ManualOrderModal';
 import InventoryCard from '../../components/InventoryCard';
 import ClientDetailsPanel from '../../components/ClientDetailsPanel';
+import OrderDetailModal from '../../components/OrderDetailModal';
 import ScopeSelectionModal from '../../components/ScopeSelectionModal';
 import TenantTicketsPanel from '../../components/TenantTicketsPanel';
 import AdminErrorBoundary from '../../components/AdminErrorBoundary';
@@ -112,6 +113,11 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
   } = useAdmin();
 
   const tabLabels = React.useMemo(() => resolvedTabLabels || {}, [resolvedTabLabels]);
+  const [clientOrderDetail, setClientOrderDetail] = React.useState(null);
+
+  React.useEffect(() => {
+    if (!selectedClient) setClientOrderDetail(null);
+  }, [selectedClient]);
 
   const nextCategoryOrder = React.useMemo(() => {
     const maxOrder = categories.reduce((maxValue, cat) => {
@@ -419,20 +425,23 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
           hideTitleVisual={hideKitchenTitleOnMobile}
         >
             <AdminHeaderClock dataSyncedAtLabel={lastSyncLabel} className="header-action-clock" />
-            <AdminNotificationCenter
-              broadcasts={broadcasts}
-              broadcastsLoading={broadcastsLoading}
-              ackingId={ackingId}
-              onAcknowledge={acknowledgeBroadcast}
-              inventoryBranchRows={inventoryBranchRows}
-              products={products}
-              selectedBranch={selectedBranch}
-              setActiveTab={setActiveTab}
-              setEditingProduct={setEditingProduct}
-              setIsModalOpen={setIsModalOpen}
-              canAccessInventory={canAccessTab('inventory')}
-              canAccessProducts={canAccessTab('products')}
-            />
+            <div className="header-actions-leading">
+              <AdminNotificationCenter
+                broadcasts={broadcasts}
+                broadcastsLoading={broadcastsLoading}
+                ackingId={ackingId}
+                onAcknowledge={acknowledgeBroadcast}
+                inventoryBranchRows={inventoryBranchRows}
+                products={products}
+                selectedBranch={selectedBranch}
+                setActiveTab={setActiveTab}
+                setEditingProduct={setEditingProduct}
+                setIsModalOpen={setIsModalOpen}
+                canAccessInventory={canAccessTab('inventory')}
+                canAccessProducts={canAccessTab('products')}
+              />
+              <OrderNotificationSoundControl />
+            </div>
             {adminShortcutsEnabled ? (
               <button
                 type="button"
@@ -454,8 +463,6 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
             >
               <RefreshCw size={24} strokeWidth={1.65} className={refreshing ? 'animate-spin' : ''} />
             </button>
-
-            <OrderNotificationSoundControl />
 
             <AdminBranchSelector
               branches={branches}
@@ -1004,7 +1011,21 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
         clientHistoryLoading={clientHistoryLoading}
         selectedClientOrders={selectedClientOrders}
         setReceiptModalOrder={setReceiptModalOrder}
+        onOrderClick={(order) => setClientOrderDetail(order)}
+        orderDetailOpen={Boolean(clientOrderDetail)}
       />
+
+      {clientOrderDetail ? (
+        <OrderDetailModal
+          order={clientOrderDetail}
+          onClose={() => setClientOrderDetail(null)}
+          branch={selectedBranch}
+          logoUrl={logoUrl}
+          companyName={companyName}
+          showNotify={showNotify}
+          setReceiptModalOrder={setReceiptModalOrder}
+        />
+      ) : null}
 
 
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { X, History, Clock, User, DollarSign, CreditCard, Smartphone, XCircle } from 'lucide-react';
+import { X, History, Clock, User, DollarSign, CreditCard, Smartphone, XCircle, Eye } from 'lucide-react';
+import { getOrderForMovement, isMovementOrderClickable } from '../../utils/getOrderForMovement';
 import { cashService } from '../../services/cashService';
 import {
     isManualLocalExpense,
@@ -77,7 +78,7 @@ function formatMovementDateTime(iso) {
     };
 }
 
-const CashShiftDetailModal = ({ isOpen, onClose, shift, getTotals, orders = [] }) => {
+const CashShiftDetailModal = ({ isOpen, onClose, shift, getTotals, orders = [], onMovementClick }) => {
     const [movements, setMovements] = useState([]);
     const [loading, setLoading] = useState(false);
     const [openedByLabel, setOpenedByLabel] = useState('');
@@ -442,10 +443,37 @@ const CashShiftDetailModal = ({ isOpen, onClose, shift, getTotals, orders = [] }
                                                 m.orders && m.type !== 'cancel'
                                                     ? getPaymentLabel(m.orders)
                                                     : paymentLabel;
+                                            const clickable =
+                                                Boolean(onMovementClick) &&
+                                                isMovementOrderClickable(m, orders);
+                                            const orderForRow = clickable
+                                                ? getOrderForMovement(m, orders)
+                                                : null;
+                                            const handleRowActivate = () => {
+                                                if (clickable && onMovementClick) onMovementClick(m);
+                                            };
                                             return (
                                             <tr
                                                 key={m.id}
-                                                className={`movement-row${m.type === 'cancel' ? ' movement-row--cancelled' : ''}`}
+                                                className={`movement-row${m.type === 'cancel' ? ' movement-row--cancelled' : ''}${clickable ? ' movement-row--clickable' : ''}`}
+                                                onClick={clickable ? handleRowActivate : undefined}
+                                                onKeyDown={
+                                                    clickable
+                                                        ? (e) => {
+                                                              if (e.key === 'Enter' || e.key === ' ') {
+                                                                  e.preventDefault();
+                                                                  handleRowActivate();
+                                                              }
+                                                          }
+                                                        : undefined
+                                                }
+                                                role={clickable ? 'button' : undefined}
+                                                tabIndex={clickable ? 0 : undefined}
+                                                aria-label={
+                                                    clickable && orderForRow
+                                                        ? `Ver detalle del pedido ${orderForRow.id}`
+                                                        : undefined
+                                                }
                                             >
                                                 <td className="cash-shift-detail-movements-table__time">
                                                     <div className="cash-shift-detail-movement-datetime">
@@ -474,6 +502,11 @@ const CashShiftDetailModal = ({ isOpen, onClose, shift, getTotals, orders = [] }
                                                 <td className="cash-shift-detail-movements-table__detail">
                                                     <div className="cash-shift-detail-movement-desc">
                                                         {m.description || '—'}
+                                                        {clickable ? (
+                                                            <span className="cash-shift-detail-movement-view-hint">
+                                                                <Eye size={12} aria-hidden /> Ver detalle
+                                                            </span>
+                                                        ) : null}
                                                     </div>
                                                     {m.orders ? (
                                                         <div className="cash-shift-detail-movement-order">

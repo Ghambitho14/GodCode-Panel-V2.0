@@ -16,6 +16,7 @@ import { formatCurrency } from '@/shared/utils/formatters';
 import { getPaymentLabel } from '@/shared/utils/orderUtils';
 import AdminIconSlot from '../AdminIconSlot';
 import AdminMenuSelect from '../AdminMenuSelect';
+import { getOrderForMovement } from '../../utils/getOrderForMovement';
 
 const fmt = (n) => {
     try { return formatCurrency(n); } catch { return `$${(n || 0).toLocaleString('es-CL')}`; }
@@ -68,33 +69,6 @@ const CashManager = ({
     const [movementModalVariant, setMovementModalVariant] = useState('income');
     const [filterPeriod, setFilterPeriod] = useState('30');
     const [selectedMovementOrder, setSelectedMovementOrder] = useState(null);
-
-    const getOrderForMovement = useCallback(
-        (movement, ordersList) => {
-            const list = ordersList || orders || [];
-            const fromJoin = movement?.orders;
-            if (fromJoin?.id) return fromJoin;
-            const id = movement?.order_id ?? movement?.orderId;
-            if (id != null) {
-                const found = list.find((o) => String(o.id) === String(id));
-                if (found) return found;
-            }
-            const desc = String(movement?.description || '');
-            const match = desc.match(/#(\d{1,8})/);
-            if (!match) return null;
-            const num = match[1].replace(/^0+/, '') || '0';
-            return (
-                list.find((o) => {
-                    const sid = String(o.id);
-                    return (
-                        sid.replace(/^0+/, '') === num ||
-                        sid.slice(-4).replace(/^0+/, '') === num
-                    );
-                }) ?? null
-            );
-        },
-        [orders]
-    );
 
     const loadHistory = useCallback(async () => {
         setLoadingHistory(true);
@@ -153,13 +127,10 @@ const CashManager = ({
             .slice(0, 8);
     }, [movements, cancelledOrdersInShift]);
 
-    const handleMovementClick = useCallback(
-        (m) => {
-            const order = getOrderForMovement(m, orders);
-            if (order) setSelectedMovementOrder(order);
-        },
-        [getOrderForMovement, orders]
-    );
+    const handleMovementClick = useCallback((m) => {
+        const order = getOrderForMovement(m, orders);
+        if (order) setSelectedMovementOrder(order);
+    }, [orders]);
 
     if (loadingSystem) return (
         <div className="cash-loading">
@@ -524,12 +495,13 @@ const CashManager = ({
                 }}
             />
 
-            <CashShiftDetailModal 
+            <CashShiftDetailModal
                 isOpen={!!viewingShift}
                 onClose={() => setViewingShift(null)}
                 shift={viewingShift}
                 getTotals={getTotals}
                 orders={orders}
+                onMovementClick={handleMovementClick}
             />
 
             <CashOrderDetailPanel

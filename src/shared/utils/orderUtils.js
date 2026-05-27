@@ -32,7 +32,7 @@ export function getPaymentLabel(order) {
 }
 
 /**
- * Indica si el pedido es pago online (transferencia, Zelle, etc.) para filtros y desglose.
+ * Indica si el pedido es pago online (transferencia, Zelle, etc.) — p. ej. comprobante / voucher.
  * @param {{ payment_type?: string; payment_method_specific?: string | null }} order
  * @returns {boolean}
  */
@@ -42,9 +42,20 @@ export function isOnlineOrder(order) {
 	return Boolean(order.payment_method_specific && ONLINE_SPECIFIC_METHODS.has(order.payment_method_specific));
 }
 
+/**
+ * Pedido desde menú digital (el checkout persiste payment_method_specific).
+ * @param {{ payment_method_specific?: string | null }} order
+ * @returns {boolean}
+ */
+export function isMenuOrder(order) {
+	if (!order) return false;
+	const spec = String(order.payment_method_specific ?? '').trim();
+	return spec.length > 0;
+}
+
 /** Pedido creado en panel/caja (p. ej. Pedido Manual), no menú público online. */
 export function isPanelManualOrder(order) {
-	return Boolean(order) && !isOnlineOrder(order);
+	return Boolean(order) && !isMenuOrder(order);
 }
 
 /**
@@ -218,8 +229,13 @@ export function buildOrderDeliveryDriverPack(order, branchName, branchAddress = 
  */
 export function getPaymentSlug(order) {
 	if (!order) return 'cash';
-	if (order.payment_type === 'tarjeta' || order.payment_type === 'card') return 'card';
-	if (isOnlineOrder(order)) return 'transfer';
+	const specific = String(order.payment_method_specific ?? '').trim().toLowerCase();
+	if (specific === 'efectivo') return 'cash';
+	if (specific === 'tarjeta' || specific === 'stripe') return 'card';
+	if (specific && ONLINE_SPECIFIC_METHODS.has(specific)) return 'transfer';
+	const pt = String(order.payment_type ?? '').toLowerCase();
+	if (pt === 'tarjeta' || pt === 'card') return 'card';
+	if (pt === 'online' || pt === 'transferencia') return 'transfer';
 	return 'cash';
 }
 
@@ -237,7 +253,8 @@ export function getCashMovementPaymentMethod(order, existingMovements = []) {
 		return fromSale;
 	}
 	if (!order) return 'cash';
-	const specific = order.payment_method_specific;
+	const specific = String(order.payment_method_specific ?? '').trim().toLowerCase();
+	if (specific === 'efectivo') return 'cash';
 	if (specific === 'tarjeta' || specific === 'stripe') return 'card';
 	if (specific && ONLINE_SPECIFIC_METHODS.has(specific)) return 'online';
 	const pt = String(order.payment_type ?? '').toLowerCase();
