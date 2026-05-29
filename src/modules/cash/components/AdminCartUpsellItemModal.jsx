@@ -399,7 +399,7 @@ export default function AdminCartUpsellItemModal({
 							</datalist>
 							<small className="admin-cart-upsell-modal-hint">
 								{isBev
-									? "Solo agrupa bebidas (aguas, refrescos…). No es la categoría de insumos del inventario."
+									? "Solo agrupa bebidas (aguas, refrescos…). No es la categoría de artículos del inventario."
 									: "Solo agrupa extras (salsas, aderezos…). Puedes escribir una categoría nueva."}
 							</small>
 						</div>
@@ -436,7 +436,7 @@ export default function AdminCartUpsellItemModal({
 						<div className="admin-cart-upsell-modal-section">
 							<h4 className="admin-cart-upsell-modal-section__title">Inventario (opcional)</h4>
 							<div className="form-group">
-								<label>Vincular a insumo de la empresa</label>
+								<label>Vincular a artículo de la empresa</label>
 								<select
 									className="form-input"
 									value={formData.inventoryItemId}
@@ -446,7 +446,7 @@ export default function AdminCartUpsellItemModal({
 									<option value="">Sin vincular (solo menú)</option>
 									{inventoryOrphanSelected && (
 										<option value={formData.inventoryItemId}>
-											Insumo guardado (revisa sucursal en inventario)
+											Artículo guardado (revisa sucursal en inventario)
 										</option>
 									)}
 									{inventoryOptions.map((o) => (
@@ -458,7 +458,7 @@ export default function AdminCartUpsellItemModal({
 								</select>
 								<small className="admin-cart-upsell-modal-hint">
 									{isBev
-										? "Recomendado: insumo con tipo «Bebida» en inventario. Si hay vínculo, cada venta descuenta stock."
+										? "Recomendado: artículo con tipo «Bebida» en inventario. Si hay vínculo, cada venta descuenta stock."
 										: "Si hay vínculo, cada venta descuenta stock en esta sucursal."}
 								</small>
 							</div>
@@ -479,7 +479,7 @@ export default function AdminCartUpsellItemModal({
 									/>
 									{errors.unitsPerSale && <span className="error-text">{errors.unitsPerSale}</span>}
 									<small className="admin-cart-upsell-modal-hint">
-										Por ejemplo 1 si cada venta descuenta una unidad del insumo.
+										Por ejemplo 1 si cada venta descuenta una unidad del artículo.
 									</small>
 								</div>
 							) : null}
@@ -497,7 +497,7 @@ export default function AdminCartUpsellItemModal({
 								/>
 								{errors.maxPerOrder && <span className="error-text">{errors.maxPerOrder}</span>}
 								<small className="admin-cart-upsell-modal-hint">
-									Tope para el cliente por ítem. Si hay insumo vinculado, también se respeta el stock.
+									Tope para el cliente por ítem. Si hay artículo vinculado, también se respeta el stock.
 								</small>
 							</div>
 						</div>

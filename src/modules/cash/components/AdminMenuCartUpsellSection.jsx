@@ -91,9 +91,9 @@ export default function AdminMenuCartUpsellSection({
 			return {
 				pageTitle: "Bebidas en carrito",
 				pageLead:
-					"Agrupa por categoría propia (aguas, refrescos, jugos…) — no comparten categorías con los insumos del inventario.",
+					"Agrupa por categoría propia (aguas, refrescos, jugos…) — no comparten categorías con los artículos del inventario.",
 				pageHelp:
-					"Categoría agrupa en el carrito (Refrescos, Aguas…). Elige el tipo de bebida (Refresco, Agua…). Opcional: vincula un insumo tipo Bebida para descontar stock al vender.",
+					"Categoría agrupa en el carrito (Refrescos, Aguas…). Elige el tipo de bebida (Refresco, Agua…). Opcional: vincula un artículo tipo Bebida para descontar stock al vender.",
 				Icon: CupSoda,
 				newLabel: "Nueva bebida",
 				saveSuccess: "Bebidas actualizadas.",
@@ -104,9 +104,9 @@ export default function AdminMenuCartUpsellSection({
 		return {
 			pageTitle: "Extras en carrito",
 			pageLead:
-				"Pueden ser complementos solo de menú o enlazarse a un insumo que ya controlas en inventario (salsas, toppings…).",
+				"Pueden ser complementos solo de menú o enlazarse a un artículo que ya controlas en inventario (salsas, toppings…).",
 			pageHelp:
-				"Categorías aparte (salsas, aderezos…). El vínculo a insumo es opcional: sirve para descontar stock al vender.",
+				"Categorías aparte (salsas, aderezos…). El vínculo a artículo es opcional: sirve para descontar stock al vender.",
 			Icon: Sparkles,
 			newLabel: "Nuevo extra",
 			saveSuccess: "Extras actualizados.",
@@ -396,7 +396,7 @@ export default function AdminMenuCartUpsellSection({
 	const appendExtraFromInventoryRow = async (inv) => {
 		if (!inv?.id || isBev) return;
 		if (items.some((x) => normInvUuid(x.inventoryItemId) === normInvUuid(inv.id))) {
-			showNotify("Ese insumo ya está en el catálogo de extras.", "error");
+			showNotify("Ese artículo ya está en el catálogo de extras.", "error");
 			return;
 		}
 		if (items.length >= CART_UPSELL_MAX_ITEMS) {
@@ -876,7 +876,7 @@ export default function AdminMenuCartUpsellSection({
 							<div>
 								<h3 id="cart-pick-inv-title">Añadir extra desde inventario</h3>
 								<p className="modal-subtitle">
-									Se crea una línea en el carrito con el insumo vinculado; ajusta precio e imagen después.
+									Se crea una línea en el carrito con el artículo vinculado; ajusta precio e imagen después.
 								</p>
 							</div>
 							<button
@@ -893,7 +893,7 @@ export default function AdminMenuCartUpsellSection({
 								<input
 									type="search"
 									className="form-input"
-									placeholder="Buscar insumo…"
+									placeholder="Buscar artículo…"
 									value={pickInvSearch}
 									onChange={(e) => setPickInvSearch(e.target.value)}
 									autoComplete="off"

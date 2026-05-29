@@ -432,7 +432,7 @@ export const ordersService = {
                     throw new Error('Stock insuficiente en inventario para completar el pedido. Revisa recetas y existencias en la sucursal.');
                 }
                 if (rpcMessage.includes('inventory_branch_missing')) {
-                    throw new Error('Falta configuración de stock en sucursal para un insumo del pedido. Completa el inventario por local.');
+                    throw new Error('Falta configuración de stock en sucursal para un artículo del pedido. Completa el inventario por local.');
                 }
                 throw orderError;
             }

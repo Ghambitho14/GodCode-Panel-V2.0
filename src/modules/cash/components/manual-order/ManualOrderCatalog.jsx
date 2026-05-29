@@ -68,6 +68,37 @@ function groupProductsByCategory(items, categories = []) {
     return { groupedCategories, uncategorized };
 }
 
+function normalizeCategoryId(id) {
+    return id == null ? '' : String(id).trim();
+}
+
+function buildCategoryNavKey(variant, id) {
+    return `${variant}:${normalizeCategoryId(id)}`;
+}
+
+/** Desplaza solo dentro de `.manual-order-categories-scroll` (no propaga al overlay). */
+function scrollWithinCatalog(el, offsetTop = 12) {
+    if (!el) return;
+    const scrollParent = el.closest('.manual-order-categories-scroll');
+    if (!scrollParent) return;
+
+    const parentRect = scrollParent.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    let targetTop = scrollParent.scrollTop + (elRect.top - parentRect.top) - offsetTop;
+
+    if (!Number.isFinite(targetTop)) {
+        let top = 0;
+        let node = el;
+        while (node && node !== scrollParent) {
+            top += node.offsetTop;
+            node = node.offsetParent;
+        }
+        targetTop = top - offsetTop;
+    }
+
+    scrollParent.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+}
+
 const ManualOrderCatalog = ({
     products = [],
     categories = [],
@@ -83,6 +114,7 @@ const ManualOrderCatalog = ({
     const [showProductImages, setShowProductImages] = useState(false);
 
     const searchInputRef = useRef(null);
+    const catalogScrollRef = useRef(null);
     const productsSectionRef = useRef(null);
     const beveragesSectionRef = useRef(null);
     const extrasSectionRef = useRef(null);
@@ -94,24 +126,17 @@ const ManualOrderCatalog = ({
     };
 
     const scrollToCategory = (key) => {
-        const el = categoryRefsRef.current.get(key);
-        if (el && typeof el.scrollIntoView === 'function') {
-            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        let el = categoryRefsRef.current.get(key);
+        const scrollParent = catalogScrollRef.current;
+        if (!el && scrollParent) {
+            const escaped = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(key) : key.replace(/"/g, '\\"');
+            el = scrollParent.querySelector(`[data-category-key="${escaped}"]`);
         }
+        scrollWithinCatalog(el, 72);
     };
 
     const scrollToSection = (sectionRef) => {
-        const el = sectionRef?.current;
-        if (!el) return;
-        const scrollParent = el.closest('.manual-order-categories-scroll');
-        if (scrollParent) {
-            const parentTop = scrollParent.getBoundingClientRect().top;
-            const elTop = el.getBoundingClientRect().top;
-            const nextTop = scrollParent.scrollTop + (elTop - parentTop) - 12;
-            scrollParent.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
-            return;
-        }
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        scrollWithinCatalog(sectionRef?.current, 12);
     };
 
     const toggleSearch = () => {
@@ -196,7 +221,7 @@ const ManualOrderCatalog = ({
         const pushFromCatalog = (catalog, variant) => {
             catalog.groupedCategories.forEach((cat) => {
                 items.push({
-                    key: `${variant}:${cat.id}`,
+                    key: buildCategoryNavKey(variant, cat.id),
                     name: cat.name,
                     count: cat.products.length,
                     variant,
@@ -204,7 +229,7 @@ const ManualOrderCatalog = ({
             });
             if (catalog.uncategorized.length > 0) {
                 items.push({
-                    key: `${variant}:__uncat__`,
+                    key: buildCategoryNavKey(variant, '__uncat__'),
                     name: variant === 'products' ? 'Otros' : variant === 'beverages' ? 'Bebidas' : 'Extras',
                     count: catalog.uncategorized.length,
                     variant,
@@ -244,11 +269,14 @@ const ManualOrderCatalog = ({
                     </div>
                 </header>
                 {sectionNote ? <p className="manual-order-catalog-section__note">{sectionNote}</p> : null}
-                {catalog.groupedCategories.map((cat) => (
+                {catalog.groupedCategories.map((cat) => {
+                    const navKey = buildCategoryNavKey(variant, cat.id);
+                    return (
                     <div
-                        key={cat.id}
+                        key={`${variant}-${normalizeCategoryId(cat.id)}`}
                         className="manual-order-category-section"
-                        ref={setCategoryRef(`${variant}:${cat.id}`)}
+                        data-category-key={navKey}
+                        ref={setCategoryRef(navKey)}
                     >
                         <h3 className="manual-order-category-title">{cat.name}</h3>
                         <div className="manual-order-products-grid">
@@ -267,11 +295,13 @@ const ManualOrderCatalog = ({
                             ))}
                         </div>
                     </div>
-                ))}
+                    );
+                })}
                 {catalog.uncategorized.length > 0 && (
                     <div
                         className="manual-order-category-section"
-                        ref={setCategoryRef(`${variant}:__uncat__`)}
+                        data-category-key={buildCategoryNavKey(variant, '__uncat__')}
+                        ref={setCategoryRef(buildCategoryNavKey(variant, '__uncat__'))}
                     >
                         <h3 className="manual-order-category-title">Otros</h3>
                         <div className="manual-order-products-grid">
@@ -382,7 +412,7 @@ const ManualOrderCatalog = ({
                         ))}
                     </aside>
                 )}
-                <div className="manual-order-categories-scroll">
+                <div ref={catalogScrollRef} className="manual-order-categories-scroll">
                     {!hasAnyResults ? (
                         <div className="manual-order-empty-search" style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
                             No se encontraron productos

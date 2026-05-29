@@ -11,9 +11,9 @@ export const ADMIN_PANEL_TAB_OPTIONS = [
   { id: "analytics", label: "Reportes" },
   { id: "local_expenses", label: "Gastos del local" },
   { id: "categories", label: "Categorías" },
-  /** Catálogo vendible (platos); no confundir con la pestaña `inventory` (insumos / stock). */
+  /** Catálogo vendible (productos); no confundir con la pestaña `inventory` (artículos / stock). */
   { id: "products", label: "Menú y carta" },
-  { id: "inventory", label: "Inventario (insumos)" },
+  { id: "inventory", label: "Inventario" },
   { id: "menu_beverages", label: "Bebidas" },
   { id: "menu_extras", label: "Extras" },
   { id: "menu_options", label: "Opciones de sucursal" },

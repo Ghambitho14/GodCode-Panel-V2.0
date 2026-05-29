@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useId } from "react";
 import { X, Save, MapPin } from "lucide-react";
 import { supabase, TABLES } from "@/integrations/supabase";
+import { getInventoryUnitSelectGroups, normalizeUnit } from "@/lib/inventory-units";
 
 const ITEM_TYPES = [
-	{ id: "kitchen", label: "Cocina / insumo" },
+	{ id: "kitchen", label: "General / materia prima" },
 	{ id: "beverage", label: "Bebida (stock)" },
 	{ id: "sellable_extra", label: "Extra vendible" },
 	{ id: "other", label: "Otro" },
@@ -72,7 +73,7 @@ const InventoryItemModal = ({
 			setFormData({
 				name: itemToEdit.name || "",
 				stock: finiteNum(itemToEdit.stock, 0),
-				unit: itemToEdit.unit || "un",
+				unit: normalizeUnit(itemToEdit.unit || "un"),
 				min_stock: finiteNum(itemToEdit.min_stock, 0),
 				item_type: it,
 				beverage_kind: itemToEdit.beverage_kind || "",
@@ -137,7 +138,7 @@ const InventoryItemModal = ({
 
 			const itemData = {
 				name: formData.name,
-				unit: formData.unit,
+				unit: normalizeUnit(formData.unit),
 				min_stock: finiteNum(formData.min_stock, 0),
 				category: "", // Se elimina del UI, enviamos vacío
 				cost_per_unit: finiteNum(formData.cost_per_unit, 0),
@@ -159,7 +160,7 @@ const InventoryItemModal = ({
 
 			itemData.company_id = companyId || (relevantBranches[0] && relevantBranches[0].company_id);
 			if (!itemData.company_id) {
-				showNotify("No se pudo determinar la empresa del insumo.", "error");
+				showNotify("No se pudo determinar la empresa del artículo.", "error");
 				setLoading(false);
 				return;
 			}
@@ -172,7 +173,7 @@ const InventoryItemModal = ({
 					.eq("id", itemId);
 				
 				if (error) {
-					console.error("Error al actualizar insumo:", error);
+					console.error("Error al actualizar artículo:", error);
 					throw error;
 				}
 			} else {
@@ -228,13 +229,13 @@ const InventoryItemModal = ({
 				}
 			}
 
-			showNotify(itemToEdit ? "Insumo actualizado" : "Insumo creado", "success");
+			showNotify(itemToEdit ? "Artículo actualizado" : "Artículo creado", "success");
 			if (typeof onItemSaved === "function") {
 				onItemSaved({ id: itemId, isNew: !itemToEdit });
 			}
 			onClose();
 		} catch {
-			showNotify("Error al guardar insumo", "error");
+			showNotify("Error al guardar artículo", "error");
 		} finally {
 			setLoading(false);
 		}
@@ -255,13 +256,13 @@ const InventoryItemModal = ({
 			>
 				<header className="modal-header">
 					<div>
-						<h3 id="inventory-item-modal-title">{itemToEdit ? "Editar insumo" : "Nuevo insumo"}</h3>
+						<h3 id="inventory-item-modal-title">{itemToEdit ? "Editar artículo" : "Nuevo artículo"}</h3>
 						<p className="modal-subtitle inventory-modal-subtitle">
 							{itemToEdit
-								? "Actualiza stock, mínimos y datos del insumo."
+								? "Actualiza stock, mínimos y datos del artículo."
 								: branchId === "all"
-									? "Define el insumo y el stock inicial; elige en qué sucursales aplica."
-									: "Define el insumo y el stock inicial para la sucursal seleccionada."}
+									? "Define el artículo y el stock inicial; elige en qué sucursales aplica."
+									: "Define el artículo y el stock inicial para la sucursal seleccionada."}
 						</p>
 					</div>
 					<button type="button" onClick={onClose} className="btn-close" aria-label="Cerrar">
@@ -272,7 +273,7 @@ const InventoryItemModal = ({
 				<form onSubmit={handleSubmit}>
 					<div className="modal-form-scroll">
 						<div className="form-group">
-							<label htmlFor="inv-item-name">Nombre del insumo</label>
+							<label htmlFor="inv-item-name">Nombre del artículo</label>
 							<input
 								id="inv-item-name"
 								required
@@ -304,7 +305,7 @@ const InventoryItemModal = ({
 								))}
 							</select>
 							<p className="form-hint inventory-form-hint">
-								Bebida = stock de bebidas vendibles; Extra vendible = insumo que también ofreces como extra en
+								Bebida = stock de bebidas vendibles; Extra vendible = artículo que también ofreces como extra en
 								carrito.
 							</p>
 						</div>
@@ -356,19 +357,27 @@ const InventoryItemModal = ({
 							</div>
 						</div>
 						<div className="form-group">
-							<label htmlFor="inv-item-unit">Unidad</label>
+							<label htmlFor="inv-item-unit">Unidad de stock</label>
 							<select
 								id="inv-item-unit"
 								className="form-select inventory-form-select"
-								value={formData.unit}
+								value={normalizeUnit(formData.unit)}
 								onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
 							>
-								<option value="un">Unidades (un)</option>
-								<option value="kg">Kilos (kg)</option>
-								<option value="g">Gramos (g)</option>
-								<option value="lt">Litros (lt)</option>
-								<option value="ml">Mililitros (ml)</option>
+								{getInventoryUnitSelectGroups().map((group) => (
+									<optgroup key={group.groupLabel} label={group.groupLabel}>
+										{group.options.map((opt) => (
+											<option key={opt.value} value={opt.value}>
+												{opt.label}
+											</option>
+										))}
+									</optgroup>
+								))}
 							</select>
+							<p className="form-hint inventory-form-hint">
+								Retail y mayorista: suele ser <strong>Unidad</strong> o <strong>Caja</strong>. Peso/volumen solo si
+								compras a granel.
+							</p>
 						</div>
 
 						<div className="form-group">
@@ -448,7 +457,7 @@ const InventoryItemModal = ({
 						<button type="submit" disabled={loading} className="btn btn-primary">
 							{loading ? "Guardando…" : (
 								<>
-									<Save size={18} /> Guardar insumo
+									<Save size={18} /> Guardar artículo
 								</>
 							)}
 						</button>

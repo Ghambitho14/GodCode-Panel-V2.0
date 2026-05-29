@@ -332,7 +332,7 @@ const LocalExpenseModal = ({
                                 <textarea
                                     id="local-expense-desc"
                                     className="local-expense-modal-textarea"
-                                    placeholder="Ej: Compra de insumos, pago arriendo..."
+                                    placeholder="Ej: Compra de artículos, pago arriendo..."
                                     value={description}
                                     onChange={(ev) => setDescription(ev.target.value)}
                                     required

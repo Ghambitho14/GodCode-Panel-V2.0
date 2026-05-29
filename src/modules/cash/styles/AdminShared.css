@@ -184,13 +184,22 @@
 	color: var(--accent-primary);
 }
 
+/* Capas z-index (toasts por encima de pedido manual portaleado en ManualOrderModal.css) */
+.admin-layout {
+	--z-admin-modal: 9999;
+	--z-admin-manual-order: 11050;
+	--z-admin-popover: 10060;
+	--z-admin-menu-portal: 13000;
+	--z-admin-toast: 14000;
+}
+
 /* Toasts */
 .admin-layout .admin-notification {
 	position: fixed;
 	left: 50%;
 	top: calc(16px + env(safe-area-inset-top));
 	transform: translateX(-50%);
-	z-index: 4000;
+	z-index: var(--z-admin-toast, 14000);
 	display: flex;
 	align-items: center;
 	gap: 10px;

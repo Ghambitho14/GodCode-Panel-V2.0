@@ -282,11 +282,8 @@ const AdminSidebar = ({ activeTab, setActiveTab, isMobile, kanbanColumns, userRo
                 <button
                     type="button"
                     onClick={() => {
-                        if (storefrontMenuUrl) {
-                            window.open(storefrontMenuUrl, '_blank', 'noopener,noreferrer');
-                            return;
-                        }
-                        navigate(storeHomePath);
+                        const url = storefrontMenuUrl || (storeHomePath && storeHomePath !== '/admin' ? storeHomePath : window.location.origin + '/');
+                        window.open(url, '_blank', 'noopener,noreferrer');
                     }}
                     className="nav-item"
                     style={!renderMobile ? { marginTop: 'auto', marginBottom: 10 } : {}}

@@ -37,7 +37,7 @@ export default function RPTRosenBarChart({ points = [], height = 220, ariaLabel 
         const xScale = scaleBand()
             .domain(data.map((d) => d.key))
             .range([0, 100])
-            .padding(data.length > 45 ? 0.12 : data.length > 20 ? 0.22 : 0.32);
+            .padding(data.length > 45 ? 0.28 : data.length > 20 ? 0.38 : 0.52);
 
         const yScale = scaleLinear()
             .domain([0, maxValue || 1])
@@ -58,7 +58,7 @@ export default function RPTRosenBarChart({ points = [], height = 220, ariaLabel 
 
     return (
         <div
-            className="rpt-rosen-chart rpt-rosen-chart--single-bar"
+            className={`rpt-rosen-chart rpt-rosen-chart--single-bar${hoverKey ? ' has-hovered' : ''}`}
             style={{ height }}
             role="img"
             aria-label={ariaLabel}
@@ -98,10 +98,11 @@ export default function RPTRosenBarChart({ points = [], height = 220, ariaLabel 
                     {data.map((d) => {
                         const barWidth = chart.xScale.bandwidth();
                         const barHeight = chart.yScale(0) - chart.yScale(d.value);
+                        const isBarHovered = hoverKey === d.key;
                         return (
                             <div
                                 key={d.key}
-                                className="rpt-rosen-chart__bar rpt-rosen-chart__bar--solid"
+                                className={`rpt-rosen-chart__bar rpt-rosen-chart__bar--solid${isBarHovered ? ' is-hovered' : ''}`}
                                 style={{
                                     width: `${barWidth}%`,
                                     height: `${barHeight}%`,

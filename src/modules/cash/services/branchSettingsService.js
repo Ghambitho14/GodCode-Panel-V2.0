@@ -3,6 +3,7 @@ import {
 	extractCartUpsellSettings,
 	mergeDeliverySettingsJson,
 	normalizeDeliverySettings,
+	parseInventoryEnforceOnSale,
 } from '@/lib/delivery-settings';
 import { isTenantExternalDeliveryAllowed } from '@/lib/company-integration-policy';
 
@@ -72,6 +73,7 @@ function settingsResponse(deliverySettingsRaw, origin) {
 		extrasEnabledByBranch: cart.extrasEnabledByBranch,
 		cartBeveragesCatalog: cart.cartBeveragesCatalog,
 		cartGlobalExtrasCatalog: cart.cartGlobalExtrasCatalog,
+		inventoryEnforceOnSale: parseInventoryEnforceOnSale(deliverySettingsRaw),
 	};
 }
 
@@ -124,6 +126,9 @@ function buildPatchFromBody(body) {
 	}
 	if ('cartGlobalExtrasCatalog' in body && Array.isArray(body.cartGlobalExtrasCatalog)) {
 		patch.cartGlobalExtrasCatalog = body.cartGlobalExtrasCatalog;
+	}
+	if ('inventoryEnforceOnSale' in body && typeof body.inventoryEnforceOnSale === 'boolean') {
+		patch.inventoryEnforceOnSale = body.inventoryEnforceOnSale;
 	}
 	return patch;
 }

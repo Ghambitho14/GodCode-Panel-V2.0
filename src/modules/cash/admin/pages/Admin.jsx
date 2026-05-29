@@ -140,47 +140,6 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
     return fallback?.company_id || null;
   }, [selectedBranch, branches]);
 
-  const [recipeInventoryItems, setRecipeInventoryItems] = React.useState([]);
-
-  React.useEffect(() => {
-    if (!companyId || !isModalOpen) return;
-    let cancelled = false;
-    (async () => {
-      const { data, error } = await supabase
-        .from(TABLES.inventory_items)
-        .select('id, name, unit')
-        .eq('company_id', companyId)
-        .order('name');
-      if (cancelled) return;
-      if (error) {
-        console.warn('recipe inventory_items:', error);
-        setRecipeInventoryItems([]);
-        return;
-      }
-      setRecipeInventoryItems(data || []);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [companyId, isModalOpen]);
-
-  const productRecipeInventoryOptions = React.useMemo(() => {
-    const stockMap = new Map(
-      (inventoryBranchRows || []).map((r) => [
-        String(r.inventory_item_id).toLowerCase(),
-        r.current_stock,
-      ]),
-    );
-    return (recipeInventoryItems || []).map((it) => ({
-      id: it.id,
-      name: String(it.name ?? '').trim() || 'Sin nombre',
-      unit: String(it.unit ?? 'un').trim() || 'un',
-      stock: stockMap.has(String(it.id).toLowerCase())
-        ? Number(stockMap.get(String(it.id).toLowerCase()))
-        : null,
-    }));
-  }, [recipeInventoryItems, inventoryBranchRows]);
-
   const [dragCategoryId, setDragCategoryId] = React.useState(null);
   const [dragOverCategoryId, setDragOverCategoryId] = React.useState(null);
   const dragEnabled = !isMobile;
@@ -252,7 +211,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
     ];
     if (activeTab === 'inventory' && canAccessTab('inventory')) {
       base.push(
-        { keys: '1 · 2 · 3 · 4', description: 'Resumen, Insumos, Movimientos, Recetas (con foco en la página, sin escribir en un campo)', group: 'Inventario' },
+        { keys: '1 · 2 · 3 · 4', description: 'Resumen, Artículos, Movimientos, Recetas / Consumo', group: 'Inventario' },
       );
     }
     return base;
@@ -514,7 +473,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
                 disabled={!selectedBranch || selectedBranch.id === 'all'}
                 title={selectedBranch?.id === 'all' ? 'Selecciona una sucursal' : undefined}
               >
-                <Plus size={18} /> Nuevo Plato
+                <Plus size={18} /> Nuevo Producto
               </button>
             )}
             {activeTab === 'categories' && (
@@ -590,7 +549,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
           )
         )}
 
-        {/* 2. INVENTARIO (productos / platos) */}
+        {/* 2. INVENTARIO (productos) */}
         {activeTab === 'products' && (
           <AdminErrorBoundary
             tabLabel={tabLabels.products || 'Productos'}
@@ -603,7 +562,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
               <div className="admin-stats-bar__item">
                 <div className="admin-stats-bar__icon"><Package size={18} /></div>
                 <div>
-                  <span className="admin-stats-bar__label">Total Platos</span>
+                  <span className="admin-stats-bar__label">Total Productos</span>
                   <strong className="admin-stats-bar__value">{productStats.total}</strong>
                 </div>
               </div>
@@ -628,7 +587,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
                 className={`admin-stats-bar__photos-toggle${showProductPhotos ? ' is-on' : ''}`}
                 onClick={() => setShowProductPhotos((v) => !v)}
                 aria-pressed={showProductPhotos}
-                title={showProductPhotos ? 'Ocultar fotos en la lista de platos' : 'Mostrar fotos en la lista de platos'}
+                title={showProductPhotos ? 'Ocultar fotos en la lista de productos' : 'Mostrar fotos en la lista de productos'}
               >
                 {showProductPhotos ? <Image size={18} aria-hidden /> : <ImageOff size={18} aria-hidden />}
                 <span>{showProductPhotos ? 'Fotos visibles' : 'Fotos ocultas'}</span>
@@ -639,7 +598,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
               <div className="admin-toolbar-row">
                 <div className="search-box">
                   <Search size={18} />
-                  <input placeholder="Buscar plato..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                  <input placeholder="Buscar producto..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                 </div>
                 
                 <div className="filter-box">
@@ -709,6 +668,8 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
                 branches={branches}
                 companyId={companyIdForClients}
                 products={products}
+                categories={categories}
+                onRefreshCatalog={() => loadData(true)}
               />
             </React.Suspense>
           </AdminErrorBoundary>
@@ -1123,8 +1084,6 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
           product={editingProduct}
           categories={categories}
           saving={refreshing}
-          companyId={companyId}
-          inventoryItems={productRecipeInventoryOptions}
         />
       )}
 

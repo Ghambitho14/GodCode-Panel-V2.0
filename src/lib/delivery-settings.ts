@@ -949,7 +949,24 @@ export function mergeDeliverySettingsJson(
 		next.maxFee = t;
 	}
 
+	if ("inventoryEnforceOnSale" in patch && typeof patch.inventoryEnforceOnSale === "boolean") {
+		next.inventoryEnforceOnSale = patch.inventoryEnforceOnSale;
+		delete next.inventory_enforce_on_sale;
+	}
+
 	return next;
+}
+
+/**
+ * Control de stock en ventas por sucursal (JSONB `delivery_settings`).
+ * `true` (default): bloquea venta sin stock y puede pausar productos; `false`: permite vender en configuración.
+ */
+export function parseInventoryEnforceOnSale(raw: unknown): boolean {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return true;
+	const o = raw as Record<string, unknown>;
+	if (typeof o.inventoryEnforceOnSale === "boolean") return o.inventoryEnforceOnSale;
+	if (typeof o.inventory_enforce_on_sale === "boolean") return o.inventory_enforce_on_sale;
+	return true;
 }
 
 /** Modo efectivo para UI y APIs: `named` solo si estrategia + lista no vacía; `external` con Uber Direct. */

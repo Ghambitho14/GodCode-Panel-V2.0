@@ -63,13 +63,13 @@ export default function RPTRosenSalesChart({
             .padding(
                 isGroupedBars
                     ? data.length > 20
-                        ? 0.35
-                        : 0.4
+                        ? 0.45
+                        : 0.52
                     : data.length > 45
-                      ? 0.08
+                      ? 0.25
                       : data.length > 20
-                        ? 0.18
-                        : 0.3,
+                        ? 0.35
+                        : 0.45,
             );
 
         const groupedMax = isGroupedBars
@@ -150,10 +150,11 @@ export default function RPTRosenSalesChart({
                     const values = [d.sales, d.expenses];
                     const innerBarWidth =
                         (100 - PX_BETWEEN_GROUPED_BARS * (numBars - 1)) / numBars;
+                    const isGroupHovered = hoverKey === d.key;
                     return (
                         <div
                             key={d.key}
-                            className="rpt-rosen-chart__bar-group"
+                            className={`rpt-rosen-chart__bar-group${isGroupHovered ? ' is-hovered' : ''}`}
                             style={{
                                 left: `${chart.xScale(d.key)}%`,
                                 width: `${chart.xScale.bandwidth()}%`,
@@ -169,7 +170,7 @@ export default function RPTRosenSalesChart({
                                 return (
                                     <div
                                         key={barIndex}
-                                        className={barClass}
+                                        className={`${barClass}${isGroupHovered ? ' is-hovered' : ''}`}
                                         style={{
                                             left: `${barX}%`,
                                             width: `${innerBarWidth}%`,
@@ -194,7 +195,7 @@ export default function RPTRosenSalesChart({
 
     return (
         <div
-            className={`rpt-rosen-chart ${variantClass}${isGroupedBars ? ' rpt-rosen-chart--multi-bar' : ''}`}
+            className={`rpt-rosen-chart ${variantClass}${isGroupedBars ? ' rpt-rosen-chart--multi-bar' : ''}${hoverKey ? ' has-hovered' : ''}`}
             style={{ height }}
             role="img"
             aria-label="Gráfico de ventas y gastos por día"
@@ -285,10 +286,11 @@ export default function RPTRosenSalesChart({
                                 variant === 'bar-gradient'
                                     ? 'rpt-rosen-chart__bar rpt-rosen-chart__bar--gradient'
                                     : 'rpt-rosen-chart__bar rpt-rosen-chart__bar--solid';
+                            const isBarHovered = hoverKey === d.key;
                             return (
                                 <div
                                     key={d.key}
-                                    className={barClass}
+                                    className={`${barClass}${isBarHovered ? ' is-hovered' : ''}`}
                                     style={{
                                         width: `${barWidth}%`,
                                         height: `${barHeight}%`,

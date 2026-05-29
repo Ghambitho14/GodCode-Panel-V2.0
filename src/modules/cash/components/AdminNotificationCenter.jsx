@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Bell, AlertTriangle, Package, Megaphone, ChevronRight, CheckCircle2, MapPin } from "lucide-react";
 
 /**
- * Campana del header: comunicados SaaS + alertas de inventario (stock bajo/agotado, platos pausados por stock).
+ * Campana del header: comunicados SaaS + alertas de inventario (stock bajo/agotado, productos pausados por stock).
  */
 export default function AdminNotificationCenter({
 	broadcasts = [],
@@ -31,7 +31,7 @@ export default function AdminNotificationCenter({
 		const out = [];
 		for (const r of rows) {
 			const meta = r.inventory_items || {};
-			const name = meta.name || "Insumo";
+			const name = meta.name || "Artículo";
 			const st = Number(r.current_stock) || 0;
 			const minB = Number(r.min_stock);
 			const minI = Number(meta.min_stock);
@@ -142,7 +142,7 @@ export default function AdminNotificationCenter({
 										<MapPin size={22} strokeWidth={1.65} />
 									</span>
 									<p className="admin-notification-center__empty-text">
-										Selecciona una sucursal arriba para ver stock bajo, agotados y platos pausados.
+										Selecciona una sucursal arriba para ver stock bajo, agotados y productos pausados.
 									</p>
 								</div>
 							) : pausedByStock.length > 0 ? (
@@ -159,7 +159,7 @@ export default function AdminNotificationCenter({
 													<AlertTriangle size={16} />
 												</span>
 												<span className="admin-notification-center__row-body">
-													<strong>Plato pausado por stock</strong>
+													<strong>Producto pausado por stock</strong>
 													<span>{p.name}</span>
 												</span>
 												<ChevronRight size={16} className="admin-notification-center__chev" />

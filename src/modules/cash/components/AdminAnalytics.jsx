@@ -25,6 +25,7 @@ import { useAdmin } from '../admin/pages/AdminProvider';
 import LocalExpenseModal from './expenses/LocalExpenseModal';
 import RPTRosenSalesChart from './charts/RPTRosenSalesChart';
 import RPTRosenBarChart from './charts/RPTRosenBarChart';
+import RPTRosenDonutChart from './charts/RPTRosenDonutChart';
 
 const CHART_KIND_OPTIONS = [
     { value: 'area', label: 'Área', Icon: AreaChart },
@@ -1348,6 +1349,16 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                     {/* Payment Breakdown */}
                     <div className="rpt-side-card">
                         <h4><AdminIconSlot Icon={CreditCard} slotSize="xs" tone="accent" /> Métodos de pago</h4>
+                        <div style={{ marginBottom: '1.25rem', marginTop: '0.5rem', display: 'flex', justifyContent: 'center' }}>
+                            <RPTRosenDonutChart
+                                data={[
+                                    { label: 'Efectivo', value: paymentBreakdown.cash, color: '#22c55e' },
+                                    { label: 'Tarjeta', value: paymentBreakdown.card, color: '#3b82f6' },
+                                    { label: 'Pago online', value: paymentBreakdown.online, color: '#a855f7' },
+                                ]}
+                                height={150}
+                            />
+                        </div>
                         <div className="rpt-payment-list">
                             {[
                                 { label: 'Efectivo', value: paymentBreakdown.cash, Icon: DollarSign, color: '#22c55e' },

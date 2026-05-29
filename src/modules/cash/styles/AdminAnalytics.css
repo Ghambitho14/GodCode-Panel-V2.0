@@ -263,7 +263,8 @@
 }
 
 .admin-layout .rpt-rosen-chart--single-bar .rpt-rosen-chart__bar--solid {
-    background: var(--rpt-chart-purple);
+    background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.15);
 }
 
 .admin-layout .rpt-expenses-chart-wrap {
@@ -316,8 +317,8 @@
 }
 
 .admin-layout .rpt-rosen-chart__legend-item--expenses::before {
-    background: var(--rpt-chart-purple-light);
-    border: 1px solid color-mix(in srgb, var(--rpt-chart-purple) 22%, transparent);
+    background: #f43f5e;
+    border: none;
     border-radius: 3px;
     width: 10px;
     height: 10px;
@@ -435,26 +436,57 @@
 .admin-layout .rpt-rosen-chart__bar {
     position: absolute;
     bottom: 0;
-    border-radius: 6px 6px 0 0;
+    border-radius: 8px 8px 0 0;
     min-height: 0;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    border-top: 1.5px solid rgba(255, 255, 255, 0.35);
+}
+
+/* Hover behaviors */
+.admin-layout .rpt-rosen-chart.has-hovered .rpt-rosen-chart__bar {
+    opacity: 0.35;
+    filter: saturate(70%) blur(0.5px);
+    transform: scale(0.97);
+}
+
+.admin-layout .rpt-rosen-chart.has-hovered .rpt-rosen-chart__bar.is-hovered,
+.admin-layout .rpt-rosen-chart.has-hovered .rpt-rosen-chart__bar-group:hover .rpt-rosen-chart__bar {
+    opacity: 1;
+    filter: none;
+    transform: scaleY(1.05) translateY(-2px);
+}
+
+.admin-layout .rpt-rosen-chart.has-hovered .rpt-rosen-chart__bar--multi-sales.is-hovered,
+.admin-layout .rpt-rosen-chart.has-hovered .rpt-rosen-chart__bar--solid.is-hovered,
+.admin-layout .rpt-rosen-chart.has-hovered .rpt-rosen-chart__bar--gradient.is-hovered {
+    box-shadow: 0 10px 24px rgba(139, 92, 246, 0.38), 0 0 0 1px rgba(255, 255, 255, 0.3) inset;
+    border-top-color: rgba(255, 255, 255, 0.6);
+}
+
+.admin-layout .rpt-rosen-chart.has-hovered .rpt-rosen-chart__bar--multi-expenses.is-hovered {
+    box-shadow: 0 10px 24px rgba(244, 63, 94, 0.38), 0 0 0 1px rgba(255, 255, 255, 0.3) inset;
+    border-top-color: rgba(255, 255, 255, 0.6);
 }
 
 .admin-layout .rpt-rosen-chart__bar--multi-sales {
-    background: var(--rpt-chart-purple);
+    background: linear-gradient(180deg, var(--rpt-chart-purple-light), var(--rpt-chart-purple));
     border: none;
+    border-top: 1.5px solid rgba(255, 255, 255, 0.35);
 }
 
 .admin-layout .rpt-rosen-chart__bar--multi-expenses {
-    background: var(--rpt-chart-purple-light);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--rpt-chart-purple-deep) 30%, #f43f5e), #f43f5e);
     border: none;
+    border-top: 1.5px solid rgba(255, 255, 255, 0.35);
 }
 
 .admin-layout .rpt-rosen-chart__bar--solid {
-    background: var(--rpt-chart-purple);
+    background: linear-gradient(180deg, var(--rpt-chart-purple-light), var(--rpt-chart-purple));
 }
 
 .admin-layout .rpt-rosen-chart__bar--gradient {
-    background: linear-gradient(180deg, var(--rpt-chart-purple-light), var(--rpt-chart-purple));
+    background: linear-gradient(180deg, var(--rpt-chart-purple-light), var(--rpt-chart-purple-deep));
 }
 
 .admin-layout .rpt-rosen-chart__area-layer,
@@ -535,13 +567,16 @@
     bottom: calc(100% + 8px);
     transform: translateX(-50%);
     z-index: 10;
-    min-width: 132px;
-    padding: 8px 10px;
-    border-radius: 10px;
-    background: var(--admin-card-bg, #fff);
-    border: 1px solid var(--admin-border, #e5e7eb);
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    min-width: 140px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--admin-card-bg, #fff) 82%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid color-mix(in srgb, var(--admin-border, #e5e7eb) 40%, rgba(255,255,255,0.15));
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 16px -6px rgba(15, 23, 42, 0.08);
     pointer-events: none;
+    transition: left 0.12s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .admin-layout .rpt-rosen-chart__tooltip-date {
@@ -576,11 +611,10 @@
 }
 
 .admin-layout .rpt-rosen-chart__swatch--expenses {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     border-radius: 2px;
-    background: var(--rpt-chart-purple-light);
-    border: 1px solid color-mix(in srgb, var(--rpt-chart-purple) 20%, transparent);
+    background: #f43f5e;
 }
 
 .admin-layout .rpt-rosen-chart:not(.rpt-rosen-chart--multi-bar) .rpt-rosen-chart__swatch--expenses {
