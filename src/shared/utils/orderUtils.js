@@ -423,33 +423,62 @@ export function orderDeliveryKanbanSubtitle(order) {
 }
 
 /**
- * Pedido con envío a domicilio (tabla orders: order_type, delivery_address, delivery_fee).
+ * Pedido con envío a domicilio (tabla orders: channel, delivery_address, delivery_fee).
+ * `order_type` sale|refund es tipo de transacción, no fulfillment.
  * @param {Record<string, unknown> | null | undefined} order
  * @returns {boolean}
  */
+function parseDeliveryAddressField(addr) {
+	if (addr == null) return null;
+	if (typeof addr === 'object' && !Array.isArray(addr)) {
+		return /** @type {Record<string, unknown>} */ (addr);
+	}
+	if (typeof addr === 'string') {
+		const trimmed = addr.trim();
+		if (!trimmed) return null;
+		try {
+			const parsed = JSON.parse(trimmed);
+			if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+				return /** @type {Record<string, unknown>} */ (parsed);
+			}
+		} catch {
+			return { address: trimmed };
+		}
+	}
+	return null;
+}
+
+const TRANSACTION_ORDER_TYPES = new Set(['sale', 'refund']);
+
 export function isOrderDelivery(order) {
 	if (!order) return false;
 	const ch = String(order.channel ?? '')
 		.trim()
 		.toLowerCase();
 	if (ch === 'delivery') return true;
+	if (ch === 'pickup') return false;
 
 	const t = String(order.order_type ?? '')
 		.trim()
 		.toLowerCase();
-	if (t === 'delivery' || t === 'envio' || t === 'envío' || t === 'despacho') {
-		return true;
+	if (!TRANSACTION_ORDER_TYPES.has(t)) {
+		if (t === 'delivery' || t === 'envio' || t === 'envío' || t === 'despacho') {
+			return true;
+		}
 	}
 	const fee = Number(order.delivery_fee);
 	if (Number.isFinite(fee) && fee > 0) {
 		return true;
 	}
-	const addr = order.delivery_address;
-	if (addr && typeof addr === 'object' && !Array.isArray(addr)) {
+	const addr = parseDeliveryAddressField(order.delivery_address);
+	if (addr) {
 		const vals = Object.values(addr).filter(
 			(v) => v != null && String(v).trim() !== '',
 		);
 		if (vals.length > 0) return true;
+	}
+	if (typeof order.delivery_address === 'string' && order.delivery_address.trim() !== '') {
+		return true;
 	}
 	return false;
 }
@@ -555,9 +584,29 @@ export function sanitizeOrder(rawOrder) {
 		}
 	}
 
-	return {
+	let deliveryAddress = rawOrder.delivery_address;
+	if (typeof deliveryAddress === 'string') {
+		const trimmed = deliveryAddress.trim();
+		if (trimmed) {
+			try {
+				const parsed = JSON.parse(trimmed);
+				deliveryAddress =
+					parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+						? parsed
+						: { address: trimmed };
+			} catch {
+				deliveryAddress = { address: trimmed };
+			}
+		} else {
+			deliveryAddress = null;
+		}
+	}
+
+	const normalized = {
 		...rawOrder,
 		items: cleanItems,
+		delivery_address: deliveryAddress,
+		channel: rawOrder.channel ?? null,
 		total: Number(rawOrder.total) || 0,
 		delivery_fee: Number(rawOrder.delivery_fee) || 0,
 		client_name: rawOrder.client_name || 'Cliente Desconocido',
@@ -566,6 +615,12 @@ export function sanitizeOrder(rawOrder) {
 		status: rawOrder.status || 'pending',
 		created_at: rawOrder.created_at || new Date().toISOString(),
 		payment_type: rawOrder.payment_type || 'unknown',
-		payment_method_specific: rawOrder.payment_method_specific ?? null
+		payment_method_specific: rawOrder.payment_method_specific ?? null,
 	};
+
+	if (!normalized.channel && isOrderDelivery(normalized)) {
+		normalized.channel = 'delivery';
+	}
+
+	return normalized;
 }

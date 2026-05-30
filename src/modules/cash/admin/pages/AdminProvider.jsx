@@ -322,18 +322,27 @@ export const AdminProvider = ({
 
 	const cashSystem = useCashSystem(showNotify, selectedBranch?.id);
 
-	const verifyAdminAccess = useCallback(async () => {
-		const {
-			data: { user },
-			error: userError,
-		} = await supabase.auth.getUser();
+	const verifyAdminAccessTimerRef = useRef(null);
 
-		if (userError || !user?.email) {
-			setUserRole(null);
-			setUserEmail(null);
-			setAssignedBranchId(null);
-			navigate('/');
-			return;
+	const verifyAdminAccessCore = useCallback(async () => {
+		const {
+			data: { session },
+		} = await supabase.auth.getSession();
+
+		let user = session?.user ?? null;
+		if (!user?.email) {
+			const {
+				data: { user: remoteUser },
+				error: userError,
+			} = await supabase.auth.getUser();
+			if (userError || !remoteUser?.email) {
+				setUserRole(null);
+				setUserEmail(null);
+				setAssignedBranchId(null);
+				navigate('/');
+				return;
+			}
+			user = remoteUser;
 		}
 
 		setUserEmail(user.email.trim().toLowerCase());
@@ -406,13 +415,23 @@ export const AdminProvider = ({
 		setAssignedBranchId(userRow?.branch_id || null);
 	}, [companyId, navigate, showNotify]);
 
+	const verifyAdminAccess = useCallback(() => {
+		if (verifyAdminAccessTimerRef.current) {
+			clearTimeout(verifyAdminAccessTimerRef.current);
+		}
+		verifyAdminAccessTimerRef.current = setTimeout(() => {
+			verifyAdminAccessTimerRef.current = null;
+			void verifyAdminAccessCore();
+		}, 400);
+	}, [verifyAdminAccessCore]);
+
 	useEffect(() => {
 		verifyAdminAccess();
 
 		const {
 			data: { subscription },
 		} = supabase.auth.onAuthStateChange((event) => {
-			if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+			if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
 				verifyAdminAccess();
 			}
 			if (event === 'SIGNED_OUT') {
@@ -424,6 +443,10 @@ export const AdminProvider = ({
 		});
 
 		return () => {
+			if (verifyAdminAccessTimerRef.current) {
+				clearTimeout(verifyAdminAccessTimerRef.current);
+				verifyAdminAccessTimerRef.current = null;
+			}
 			subscription.unsubscribe();
 		};
 	}, [navigate, verifyAdminAccess]);

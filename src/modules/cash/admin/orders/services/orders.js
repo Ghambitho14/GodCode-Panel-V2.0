@@ -447,7 +447,14 @@ export const ordersService = {
                 const postCreatePatch = {
                     items: normalizedItems,
                     note: finalNote,
+                    channel: deliveryMode ? 'delivery' : 'pickup',
                 };
+                if (deliveryMode) {
+                    postCreatePatch.delivery_fee = deliveryFee;
+                    if (pDeliveryPayload && !postCreatePatch.delivery_address) {
+                        postCreatePatch.delivery_address = pDeliveryPayload;
+                    }
+                }
                 if (
                     deliveryMode &&
                     isFiniteLatLng(orderData.delivery_lat, orderData.delivery_lng)

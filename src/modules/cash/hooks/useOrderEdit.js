@@ -14,7 +14,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { validateImageFile } from '@/shared/utils/cloudinary';
 import { formatRut, validateRut } from '@/shared/utils/formatters';
-import { flattenDeliveryAddress } from '@/shared/utils/orderUtils';
+import { flattenDeliveryAddress, isOrderDelivery } from '@/shared/utils/orderUtils';
 import { ordersService } from '../admin/orders/services/orders';
 import { supabase, TABLES } from '@/integrations/supabase';
 import { buildCouponPreview } from '@/lib/discount-coupon';
@@ -81,9 +81,9 @@ function buildInitialState(initialOrder) {
 		items.reduce((acc, it) => acc + getPrice(it) * (Number(it.quantity) || 1), 0),
 	);
 
-	const orderType = normalizeOrderType(
-		initialOrder.channel ?? initialOrder.order_type ?? 'pickup',
-	);
+	const orderType = isOrderDelivery(initialOrder)
+		? 'delivery'
+		: normalizeOrderType(initialOrder.channel ?? 'pickup');
 	const flatAddr = flattenDeliveryAddress(initialOrder.delivery_address);
 
 	return {

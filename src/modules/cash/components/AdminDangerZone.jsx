@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { supabase, TABLES } from '@/integrations/supabase';
+import { supabase, TABLES, createEphemeralSupabaseClient } from '@/integrations/supabase';
 import { Loader2, AlertCircle, XCircle, FileText, Trash2, Users, ChevronDown } from 'lucide-react';
 import { downloadExcel } from '@/shared/utils/exportUtils';
 import { getPaymentLabel } from '@/shared/utils/orderUtils';
@@ -156,13 +156,11 @@ const AdminDangerZone = ({ showNotify, loadData, isMobile, selectedBranch, compa
     setLoading(true);
 
     try {
-      // Guardar sesión actual antes de re-autenticar
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-
-      // Validar con Supabase Auth (re-autenticación)
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      // Validar credenciales en cliente efímero: no muta la sesión del panel ni rota refresh tokens.
+      const ephemeral = createEphemeralSupabaseClient();
+      const { error: authError } = await ephemeral.auth.signInWithPassword({
         email: trimmedEmail,
-        password: dangerPassword
+        password: dangerPassword,
       });
 
       if (authError) {
@@ -171,15 +169,11 @@ const AdminDangerZone = ({ showNotify, loadData, isMobile, selectedBranch, compa
         return;
       }
 
-      const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin');
+      const { data: isAdmin, error: adminError } = await ephemeral.rpc('is_admin');
+      await ephemeral.auth.signOut();
+
       if (adminError || !isAdmin) {
         setDangerError('Solo administradores pueden ejecutar esta acción');
-        if (currentSession && currentSession.user?.email !== trimmedEmail) {
-          await supabase.auth.setSession({
-            access_token: currentSession.access_token,
-            refresh_token: currentSession.refresh_token
-          });
-        }
         setLoading(false);
         return;
       }
@@ -239,14 +233,6 @@ const AdminDangerZone = ({ showNotify, loadData, isMobile, selectedBranch, compa
       // Cerrar modal solo después de éxito
       setIsDangerModalOpen(false);
       loadData(true);
-
-      // Restaurar sesión original si el email era diferente
-      if (currentSession && currentSession.user?.email !== trimmedEmail) {
-        await supabase.auth.setSession({
-          access_token: currentSession.access_token,
-          refresh_token: currentSession.refresh_token
-        });
-      }
     } catch (e) {
       showNotify(`Error: ${e.message}`, 'error');
     } finally {

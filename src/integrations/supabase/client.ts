@@ -53,3 +53,17 @@ export const supabase: SupabaseClient = createClient(url, anonKey, {
     storage: typeof window !== "undefined" ? window.sessionStorage : undefined,
   },
 });
+
+/**
+ * Cliente sin persistencia para validaciones puntuales (p. ej. re-auth en zona peligro)
+ * sin rotar ni invalidar la sesión del panel principal.
+ */
+export function createEphemeralSupabaseClient(): SupabaseClient {
+  return createClient(url, anonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
