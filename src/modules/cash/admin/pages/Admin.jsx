@@ -37,7 +37,7 @@ const AdminCoupons = React.lazy(() => import('../../components/AdminCoupons'));
 const AdminMenuOptions = React.lazy(() => import('../../components/AdminMenuOptions'));
 const AdminMenuBeverages = React.lazy(() => import('../../components/AdminMenuBeverages'));
 const AdminMenuExtras = React.lazy(() => import('../../components/AdminMenuExtras'));
-import { supabase, TABLES } from '@/integrations/supabase';
+import { supabase, TABLES, logout } from '@/integrations/supabase';
 import { AdminProvider, useAdmin } from './AdminProvider';
 
 export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, primaryColor, storefrontMenuUrl = null }) => {
@@ -373,7 +373,7 @@ export const AdminPage = ({ companyName, logoUrl, userEmail: initialEmail, prima
         storefrontMenuUrl={storefrontMenuUrl}
         tabLabelsById={tabLabels}
         onLogout={async () => {
-          await supabase.auth.signOut();
+          await logout();
           navigate('/');
         }}
       />

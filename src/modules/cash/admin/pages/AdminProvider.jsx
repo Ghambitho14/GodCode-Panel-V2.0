@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, createContext, useContext, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { supabase, TABLES } from '@/integrations/supabase';
+import { supabase, TABLES, bootstrapSession, getCurrentUser, logout, onAuthEvent } from '@/integrations/supabase';
 import { uploadImage, validateImageFile } from '@/shared/utils/cloudinary';
 import { useCashSystem } from '../../hooks/useCashSystem';
 import { sanitizeOrder } from '@/shared/utils/orderUtils';
@@ -325,24 +325,16 @@ export const AdminProvider = ({
 	const verifyAdminAccessTimerRef = useRef(null);
 
 	const verifyAdminAccessCore = useCallback(async () => {
-		const {
-			data: { session },
-		} = await supabase.auth.getSession();
-
-		let user = session?.user ?? null;
+		let user = getCurrentUser();
 		if (!user?.email) {
-			const {
-				data: { user: remoteUser },
-				error: userError,
-			} = await supabase.auth.getUser();
-			if (userError || !remoteUser?.email) {
+			user = await bootstrapSession();
+			if (!user?.email) {
 				setUserRole(null);
 				setUserEmail(null);
 				setAssignedBranchId(null);
 				navigate('/');
 				return;
 			}
-			user = remoteUser;
 		}
 
 		setUserEmail(user.email.trim().toLowerCase());
@@ -391,7 +383,7 @@ export const AdminProvider = ({
 		if (String(userRow.company_id) !== String(companyId)) {
 			setUserRole(null);
 			setAssignedBranchId(null);
-			await supabase.auth.signOut();
+			await logout();
 			navigate('/');
 			showNotify('Tu cuenta no pertenece a esta empresa.', 'error');
 			return;
@@ -405,7 +397,7 @@ export const AdminProvider = ({
 		if (!hasAllowedRole) {
 			setUserRole(null);
 			setAssignedBranchId(null);
-			await supabase.auth.signOut();
+			await logout();
 			navigate('/');
 			showNotify('No tienes permisos de administrador para este local', 'error');
 			return;
@@ -428,13 +420,11 @@ export const AdminProvider = ({
 	useEffect(() => {
 		verifyAdminAccess();
 
-		const {
-			data: { subscription },
-		} = supabase.auth.onAuthStateChange((event) => {
-			if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+		const unsubscribe = onAuthEvent((event) => {
+			if (event === 'signed_in') {
 				verifyAdminAccess();
 			}
-			if (event === 'SIGNED_OUT') {
+			if (event === 'signed_out') {
 				setUserRole(null);
 				setUserEmail(null);
 				setAssignedBranchId(null);
@@ -447,7 +437,7 @@ export const AdminProvider = ({
 				clearTimeout(verifyAdminAccessTimerRef.current);
 				verifyAdminAccessTimerRef.current = null;
 			}
-			subscription.unsubscribe();
+			unsubscribe();
 		};
 	}, [navigate, verifyAdminAccess]);
 

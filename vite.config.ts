@@ -3,11 +3,13 @@ import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { VitePWA } from "vite-plugin-pwa";
+import { bffDevPlugin } from "./vite/bff-dev-plugin";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
+    bffDevPlugin(mode),
     react(),
     VitePWA({
       registerType: "autoUpdate",
@@ -54,4 +56,4 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-});
+}));

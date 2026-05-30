@@ -1,0 +1,4 @@
+# Ajustes de pnpm v11 (los settings ya no van en package.json).
+# Aprobamos explicitamente el build script de esbuild (lo usa Vite).
+allowBuilds:
+  esbuild: true

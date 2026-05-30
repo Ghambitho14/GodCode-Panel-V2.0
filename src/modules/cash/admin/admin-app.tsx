@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import { supabase, TABLES } from "@/integrations/supabase";
+import { supabase, TABLES, bootstrapSession, logout } from "@/integrations/supabase";
 import type { DatabaseCompanyTheme } from "@/shared/types/company-theme";
 import { buildTenantThemeCss } from "@/shared/utils/panel-theme-css";
 import "../styles/AdminContextualHelp.css";
@@ -65,9 +65,9 @@ export function AdminApp({
 			const cid = companyIdProp.trim();
 			setResolvedCompanyId(cid);
 			setGateLoading(false);
-			void supabase.auth.getSession().then(({ data: { session } }) => {
+			void bootstrapSession().then((user) => {
 				if (cancelled) return;
-				const em = session?.user?.email?.trim().toLowerCase() ?? null;
+				const em = user?.email?.trim().toLowerCase() ?? null;
 				setResolvedUserEmail(em);
 			});
 			void supabase
@@ -85,15 +85,13 @@ export function AdminApp({
 		}
 
 		(async () => {
-			const {
-				data: { session },
-			} = await supabase.auth.getSession();
-			if (!session) {
+			const sessionUser = await bootstrapSession();
+			if (!sessionUser) {
 				navigate("/", { replace: true });
 				return;
 			}
-			const uid = session.user.id;
-			const emailNorm = session.user.email?.trim().toLowerCase() ?? "";
+			const uid = sessionUser.id;
+			const emailNorm = sessionUser.email?.trim().toLowerCase() ?? "";
 
 			let { data: row } = await supabase
 				.from(TABLES.users)
@@ -113,7 +111,7 @@ export function AdminApp({
 			if (cancelled) return;
 
 			if (!row?.company_id) {
-				await supabase.auth.signOut();
+				await logout();
 				navigate("/", { replace: true });
 				return;
 			}

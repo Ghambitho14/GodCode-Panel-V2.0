@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertCircle, Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
-import { supabase } from "@/integrations/supabase";
+import { bootstrapSession, login } from "@/integrations/supabase";
 
 export function LoginForm() {
   const navigate = useNavigate();
@@ -13,8 +13,8 @@ export function LoginForm() {
 
   useEffect(() => {
     let cancelled = false;
-    void supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!cancelled && session) navigate("/admin", { replace: true });
+    void bootstrapSession().then((user) => {
+      if (!cancelled && user) navigate("/admin", { replace: true });
     });
     return () => {
       cancelled = true;
@@ -27,14 +27,7 @@ export function LoginForm() {
     setError(null);
     setLoading(true);
     try {
-      const { error: signError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-      if (signError) {
-        setError(signError.message || "Credenciales incorrectas.");
-        return;
-      }
+      await login(email.trim(), password);
       navigate("/admin", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo iniciar sesion.");

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { PauseCircle, PlayCircle, AlertTriangle } from 'lucide-react';
-import { supabase, TABLES } from '@/integrations/supabase';
+import { supabase, TABLES, getCurrentUser } from '@/integrations/supabase';
 import {
 	DEFAULT_ORDER_INTAKE_PAUSE_MESSAGE,
 	getOrderIntakeStatus,
@@ -56,8 +56,7 @@ export default function OrderIntakePauseControl({
 	}, [loadStatus]);
 
 	const resolvePanelUserId = async () => {
-		const { data: authData } = await supabase.auth.getUser();
-		const authId = authData?.user?.id;
+		const authId = getCurrentUser()?.id;
 		if (!authId) return null;
 		const { data: row } = await supabase
 			.from(TABLES.users)
