@@ -33,3 +33,5 @@ docs
 dist
 AGENTS.es.md
 AGENTS.md.pnpm-store/
+dev-dist/
+scripts/
