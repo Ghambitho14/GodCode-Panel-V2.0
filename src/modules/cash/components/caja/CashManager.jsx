@@ -273,7 +273,7 @@ const CashManager = ({
                                         borderColor: 'var(--admin-border)',
                                     }}
                                 />
-                                <span>Por Método</span>
+                                <span>Cobros por método</span>
                             </div>
                             <div className="cash-methods-grid">
                                 <div className="cash-method-row">
@@ -292,6 +292,7 @@ const CashManager = ({
                                     <strong>{fmt(totals.online)}</strong>
                                 </div>
                             </div>
+                            <div className="cash-kpi-sub">Solo ventas de pedidos</div>
                         </div>
 
                         <div className="cash-kpi delivery">

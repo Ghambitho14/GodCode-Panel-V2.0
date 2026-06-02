@@ -389,7 +389,7 @@ const CashShiftDetailModal = ({ isOpen, onClose, shift, getTotals, orders = [], 
                         ) : null}
 
                         <section className="cash-shift-detail-card">
-                            <h4 className="cash-shift-detail-section-title">Neto por método</h4>
+                            <h4 className="cash-shift-detail-section-title">Cobros por método</h4>
                             <div className="cash-shift-detail-methods-row">
                                 <PaymentMethodChip Icon={DollarSign} label="Efectivo" value={fmtHist(totals.cash)} />
                                 <PaymentMethodChip Icon={CreditCard} label="Tarjeta" value={fmtHist(totals.card)} />
