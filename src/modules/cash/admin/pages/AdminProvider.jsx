@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase, TABLES, bootstrapSession, getCurrentUser, logout, onAuthEvent } from '@/integrations/supabase';
 import { uploadImage, validateImageFile } from '@/shared/utils/cloudinary';
 import { useCashSystem } from '../../hooks/useCashSystem';
-import { sanitizeOrder } from '@/shared/utils/orderUtils';
+import { ORDERS_SELECT_WITH_COUPON, sanitizeOrder } from '@/shared/utils/orderUtils';
 import { getAppScopedPath } from '@/shared/utils/app-route';
 import {
 	ADMIN_PANEL_TAB_IDS,
@@ -513,8 +513,8 @@ export const AdminProvider = ({
 				categoriesQuery,
 				supabase.from(TABLES.products).select('*').eq('company_id', companyId).order('name'),
 				isAllBranches
-					? supabase.from(TABLES.orders).select('*').eq('company_id', companyId).order('created_at', { ascending: false }).limit(100)
-					: supabase.from(TABLES.orders).select('*').eq('company_id', companyId).eq('branch_id', selectedBranch.id).order('created_at', { ascending: false }).limit(100),
+					? supabase.from(TABLES.orders).select(ORDERS_SELECT_WITH_COUPON).eq('company_id', companyId).order('created_at', { ascending: false }).limit(100)
+					: supabase.from(TABLES.orders).select(ORDERS_SELECT_WITH_COUPON).eq('company_id', companyId).eq('branch_id', selectedBranch.id).order('created_at', { ascending: false }).limit(100),
 				supabase.from(TABLES.clients).select('*').eq('company_id', companyId).order('last_order_at', { ascending: false }).limit(200)
 			];
 			if (!isAllBranches) {
@@ -610,7 +610,7 @@ export const AdminProvider = ({
 		try {
 			const { data, error } = await supabase
 				.from(TABLES.orders)
-				.select('*')
+				.select(ORDERS_SELECT_WITH_COUPON)
 				.eq('client_id', client.id)
 				.eq('company_id', companyId)
 				.order('created_at', { ascending: false });
@@ -676,7 +676,18 @@ export const AdminProvider = ({
 			const bid = orderRealtimeBranchId(raw);
 			if (isSingleBranch && bid != null && bid !== String(sid)) return;
 			if (!raw?.id) return;
-			setOrders((prev) => prev.map((o) => (o.id === raw.id ? sanitizeOrder(raw) : o)));
+			setOrders((prev) => prev.map((o) => {
+				if (o.id !== raw.id) return o;
+				const next = sanitizeOrder(raw);
+				if (
+					!next.coupon_code &&
+					o.coupon_code &&
+					next.discount_coupon_id === o.discount_coupon_id
+				) {
+					next.coupon_code = o.coupon_code;
+				}
+				return next;
+			}));
 			return;
 		}
 

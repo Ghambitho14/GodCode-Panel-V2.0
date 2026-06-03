@@ -4,6 +4,7 @@ import {
     computeCouponDiscountAmount,
     fetchActiveCouponByCode,
     normalizeCouponCode,
+    buildCouponPreview,
 } from '@/lib/discount-coupon';
 import {
     computeDeliveryFee,
@@ -11,7 +12,7 @@ import {
     normalizeDeliverySettings,
     isOrderPaymentAllowedForDelivery,
 } from '@/lib/delivery-settings';
-import { buildDeliveryAddressRecord } from '@/shared/utils/orderUtils';
+import { buildDeliveryAddressRecord, ORDERS_SELECT_WITH_COUPON, sanitizeOrder } from '@/shared/utils/orderUtils';
 import { buildGoogleMapsDirectionsUrl } from '@/lib/geo';
 import { printOrderTicket } from '@/modules/cash/admin/utils/receiptPrinting';
 
@@ -515,7 +516,7 @@ export const ordersService = {
         }
 
         // Recalcular subtotal client-side (mismas reglas que createOrder).
-        const itemsSubtotal = itemsForOrder.reduce((sum, item) => {
+        const itemsSubtotalRaw = itemsForOrder.reduce((sum, item) => {
             const price =
                 item.has_discount && item.discount_price && Number(item.discount_price) > 0
                     ? Number(item.discount_price)
@@ -523,6 +524,7 @@ export const ordersService = {
             const qty = Math.max(1, Number(item.quantity) || 1);
             return sum + price * qty;
         }, 0);
+        const itemsSubtotal = Math.round(itemsSubtotalRaw * 100) / 100;
 
         const isDelivery = String(patch.order_type ?? '').toLowerCase() === 'delivery';
 
@@ -560,7 +562,45 @@ export const ordersService = {
             : null;
 
         const deliveryFee = isDelivery ? Math.max(0, Number(patch.delivery_fee) || 0) : 0;
-        const totalRounded = Math.round((itemsSubtotal + deliveryFee) * 100) / 100;
+
+        const normCoupon = normalizeCouponCode(patch.coupon_code);
+        let couponDisc = 0;
+        let discountCouponId = null;
+        if (normCoupon) {
+            const companyId = options.companyId;
+            if (!companyId) {
+                throw new Error('Falta empresa para validar el cupón.');
+            }
+            const pv = await buildCouponPreview({
+                supabase,
+                companyId: String(companyId),
+                rawCode: normCoupon,
+                itemsSubtotal,
+                clientPhone: String(patch.client_phone ?? '').trim(),
+                excludeOrderId: orderId,
+                tablesCoupons: TABLES.discount_coupons,
+                tablesClients: TABLES.clients,
+                tablesRedemptions: TABLES.discount_coupon_redemptions,
+            });
+            if (!pv.ok) {
+                const couponErrMsg = {
+                    invalid_coupon: 'El código de descuento no es válido.',
+                    coupon_expired: 'Este cupón no está vigente.',
+                    coupon_min_subtotal: 'El subtotal del pedido no alcanza el mínimo de este cupón.',
+                    coupon_wrong_client: 'Este cupón solo aplica si el teléfono coincide con el cliente autorizado.',
+                    coupon_usage_exhausted: 'Este cupón ya no tiene usos disponibles.',
+                    coupon_usage_exhausted_client: 'Este cupón ya fue usado con este teléfono.',
+                };
+                throw new Error(couponErrMsg[pv.key] || 'El código de descuento no es válido.');
+            }
+            couponDisc = pv.discount;
+            discountCouponId = pv.row.id;
+        }
+
+        const netAfterCoupon = Math.round(Math.max(0, itemsSubtotal - couponDisc) * 100) / 100;
+        const totalRounded = isDelivery
+            ? Math.round((netAfterCoupon + deliveryFee) * 100) / 100
+            : netAfterCoupon;
 
         // Note (preservar prefijos legibles que setea createOrder cuando aplique).
         // En esta version mantenemos el texto plano que escribe el cajero; los
@@ -572,6 +612,9 @@ export const ordersService = {
             client_phone: String(patch.client_phone ?? ''),
             client_rut: String(patch.client_rut ?? ''),
             items: itemsForOrder,
+            subtotal: itemsSubtotal,
+            discount_total: couponDisc,
+            discount_coupon_id: discountCouponId,
             total: totalRounded,
             payment_type: String(patch.payment_type ?? 'tienda'),
             note: typeof patch.note === 'string' ? patch.note : '',
@@ -584,7 +627,7 @@ export const ordersService = {
             .from(TABLES.orders)
             .update(updatePayload)
             .eq('id', orderId)
-            .select('*')
+            .select(ORDERS_SELECT_WITH_COUPON)
             .single();
 
         if (error) {
@@ -640,7 +683,7 @@ export const ordersService = {
             );
         }
 
-        return updated;
+        return sanitizeOrder(updated);
     },
 };
 

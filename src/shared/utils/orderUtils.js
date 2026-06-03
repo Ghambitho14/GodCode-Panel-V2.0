@@ -567,6 +567,62 @@ export async function shareDeliveryPackViaWhatsApp(text, options = {}) {
 	return true;
 }
 
+/** Código legible del cupón desde join embebido o campo legacy en memoria. */
+export function resolveOrderCouponCode(rawOrder) {
+	if (!rawOrder || typeof rawOrder !== 'object') return '';
+	const joined = rawOrder.discount_coupons;
+	if (joined && typeof joined === 'object' && !Array.isArray(joined)) {
+		const code = joined.code;
+		if (code != null && String(code).trim()) return String(code).trim();
+	}
+	if (rawOrder.coupon_code != null && String(rawOrder.coupon_code).trim()) {
+		return String(rawOrder.coupon_code).trim();
+	}
+	return '';
+}
+
+/** Select de pedidos con código de cupón vía FK `discount_coupon_id`. */
+export const ORDERS_SELECT_WITH_COUPON = '*, discount_coupons(code)';
+
+function computeOrderItemsSubtotal(items) {
+	const list = Array.isArray(items) ? items : [];
+	return Math.round(
+		list.reduce((sum, item) => {
+			const price =
+				item?.has_discount && item?.discount_price != null && Number(item.discount_price) > 0
+					? Number(item.discount_price)
+					: Number(item?.price) || 0;
+			const qty = Math.max(1, Number(item?.quantity) || 1);
+			return sum + price * qty;
+		}, 0),
+	);
+}
+
+/** Meta de descuento por cupón para badges compactos (p. ej. OrderCard). */
+export function getOrderCouponDiscountMeta(order) {
+	if (!order || typeof order !== 'object') return null;
+
+	const total = Number(order.total) || 0;
+	const deliveryFee = isOrderDelivery(order) ? Number(order.delivery_fee) || 0 : 0;
+
+	let discountTotal = Number(order.discount_total) || 0;
+	if (discountTotal <= 0 && order.discount_coupon_id) {
+		const subtotal = Number(order.subtotal) || computeOrderItemsSubtotal(order.items);
+		if (subtotal > 0) {
+			discountTotal = Math.max(0, subtotal + deliveryFee - total);
+		}
+	}
+	if (discountTotal <= 0) return null;
+
+	const originalTotal = Math.round((total + discountTotal) * 100) / 100;
+	const discountPercent =
+		originalTotal > 0 ? Math.round((discountTotal / originalTotal) * 100) : 0;
+
+	if (discountPercent <= 0) return null;
+
+	return { originalTotal, discountTotal, discountPercent };
+}
+
 export function sanitizeOrder(rawOrder) {
 	if (!rawOrder) return null;
 
@@ -608,6 +664,10 @@ export function sanitizeOrder(rawOrder) {
 		delivery_address: deliveryAddress,
 		channel: rawOrder.channel ?? null,
 		total: Number(rawOrder.total) || 0,
+		subtotal: Number(rawOrder.subtotal) || 0,
+		discount_total: Number(rawOrder.discount_total) || 0,
+		discount_coupon_id: rawOrder.discount_coupon_id ?? null,
+		coupon_code: resolveOrderCouponCode(rawOrder),
 		delivery_fee: Number(rawOrder.delivery_fee) || 0,
 		client_name: rawOrder.client_name || 'Cliente Desconocido',
 		client_rut: rawOrder.client_rut || 'Sin RUT',

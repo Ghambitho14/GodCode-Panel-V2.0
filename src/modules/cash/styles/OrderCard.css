@@ -42,14 +42,40 @@
     min-height: min-content;
 }
 
-/* Vista compacta: altura uniforme por defecto */
-.admin-layout .kanban-card:not(.kanban-card--expanded) {
+/* Vista compacta: altura uniforme por defecto (excluye cuadrícula «Una columna») */
+.admin-layout .kanban-card:not(.kanban-card--expanded):not(.kanban-card--grid-tile) {
     min-height: var(--kanban-card-compact-h);
 }
 
-.admin-layout .kanban-card:not(.kanban-card--expanded) .kanban-card-scroll {
+.admin-layout .kanban-card:not(.kanban-card--expanded):not(.kanban-card--grid-tile) .kanban-card-scroll {
     flex: 0 0 auto;
     overflow: hidden;
+}
+
+/* Vista cuadrícula (Una columna): altura natural, sin ficha compacta 176px */
+.admin-layout .kanban-card.kanban-card--grid-tile {
+    position: relative;
+    z-index: 1;
+    min-height: unset;
+    height: auto;
+    overflow: visible;
+    gap: 6px;
+}
+
+.admin-layout .kanban-card.kanban-card--grid-tile:hover,
+.admin-layout .kanban-card.kanban-card--grid-tile.kanban-card--menu-open {
+    z-index: 20;
+}
+
+.admin-layout .kanban-card.kanban-card--grid-tile .kanban-card-scroll {
+    overflow: visible;
+    flex: 1 1 auto;
+    min-height: unset;
+}
+
+.admin-layout .kanban-card.kanban-card--grid-tile .kanban-card-top,
+.admin-layout .kanban-card.kanban-card--grid-tile .kanban-card-foot {
+    flex-shrink: 0;
 }
 
 .admin-layout .kanban-card--expanded {
@@ -258,8 +284,6 @@
 /* Vista una etapa: altura según contenido (sin ficha cuadrada ni recortes) */
 .admin-layout .kanban-board.kanban-board--focus-desktop .kanban-card {
     aspect-ratio: auto;
-    overflow: visible;
-    min-height: min-content;
 }
 
 /* Escritorio + vista una columna: misma lectura que split — texto completo, sin scroll interno */
@@ -283,6 +307,18 @@
         flex-direction: column;
         gap: 8px;
         padding-top: 0;
+    }
+
+    .admin-layout .kanban-board.kanban-board--focus-desktop .kanban-card.kanban-card--grid-tile {
+        min-height: unset;
+        height: auto;
+        overflow: visible;
+    }
+
+    .admin-layout .kanban-board.kanban-board--focus-desktop .kanban-card.kanban-card--grid-tile .kanban-card-scroll {
+        overflow: visible;
+        flex: 0 0 auto;
+        min-height: unset;
     }
 
     .admin-layout .kanban-board.kanban-board--focus-desktop .kanban-card-foot {
@@ -721,6 +757,50 @@
     font-weight: 700;
 }
 
+.admin-layout .card-total-amounts {
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 5px;
+    flex-wrap: nowrap;
+    min-width: 0;
+}
+
+.admin-layout .card-total-before {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 3px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.admin-layout .card-total-before-price {
+    font-size: 0.62rem;
+    font-weight: 600;
+    color: var(--admin-text-muted, #64748b);
+    text-decoration: line-through;
+    opacity: 0.85;
+}
+
+.admin-layout .card-total-before-pct {
+    font-size: 0.58rem;
+    font-weight: 700;
+    line-height: 1.2;
+    padding: 1px 4px;
+    border-radius: 4px;
+    color: color-mix(in srgb, var(--accent-primary, #25d366) 88%, #fff);
+    background: color-mix(in srgb, var(--accent-primary, #25d366) 14%, transparent);
+}
+
+.admin-layout .kanban-card:not(.kanban-card--expanded) .card-total-before-price {
+    font-size: 0.58rem;
+}
+
+.admin-layout .kanban-card:not(.kanban-card--expanded) .card-total-before-pct {
+    font-size: 0.54rem;
+    padding: 0 3px;
+}
+
 /* --- ACCIONES (GRID SYSTEM) --- */
 .admin-layout .card-actions {
     display: grid;
@@ -876,6 +956,83 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+}
+
+.admin-layout .order-ticket-menu-panel--portal {
+    position: fixed;
+    top: auto;
+    right: auto;
+    z-index: var(--z-admin-menu-portal, 13000);
+    margin: 0;
+}
+
+/*
+ * Portal (hijo de .admin-layout o body): fixed + z-index alto para no quedar
+ * bajo otras cards ni recortado por overflow del main.
+ * Sin prefijo .admin-layout: el nodo portal debe llevar estas reglas siempre.
+ */
+.order-ticket-menu-panel--portal {
+    position: fixed;
+    top: auto;
+    right: auto;
+    z-index: var(--z-admin-menu-portal, 13000);
+    margin: 0;
+    min-width: 200px;
+    padding: 6px;
+    border-radius: 10px;
+    background: var(--admin-card-bg, #fff);
+    border: 1px solid var(--admin-border, #e2e8f0);
+    box-shadow: var(--admin-shadow-md, 0 8px 24px rgba(15, 23, 42, 0.15));
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--admin-text, #0f172a);
+    font-family: var(--admin-font, inherit);
+}
+
+.order-ticket-menu-panel--portal.manual-order-edit-menu-panel {
+    min-width: 220px;
+}
+
+.order-ticket-menu-panel--portal .order-ticket-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--admin-text, #0f172a);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    font-family: inherit;
+}
+
+.order-ticket-menu-panel--portal .order-ticket-menu-item:hover {
+    background: var(--admin-icon-bg, #f8fafc);
+    color: var(--accent-primary, #25d366);
+}
+
+.order-ticket-menu-panel--portal .manual-order-edit-menu-title {
+    margin: 0;
+    padding: 6px 10px 8px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--admin-text-muted, #64748b);
+    border-bottom: 1px solid var(--admin-border, #e2e8f0);
+}
+
+.admin-layout .kanban-card--menu-open {
+    position: relative;
+    z-index: 10;
 }
 
 .admin-layout .order-ticket-menu-item {

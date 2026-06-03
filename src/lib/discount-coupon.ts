@@ -99,6 +99,8 @@ export async function buildCouponPreview(params: {
 	tablesCoupons?: string;
 	tablesClients?: string;
 	tablesRedemptions?: string;
+	/** Al editar un pedido, excluye el canje ya registrado para ese order_id. */
+	excludeOrderId?: string | number | null;
 }): Promise<CouponPreviewOk | CouponPreviewErr> {
 	const code = normalizeCouponCode(params.rawCode);
 	if (!code || !params.companyId) return { ok: false, key: "empty" };
@@ -144,11 +146,17 @@ export async function buildCouponPreview(params: {
 
 	const maxPer = Math.max(1, Number(row.max_redemptions_per_client ?? 1) || 1);
 	if (phone) {
-		const { count, error } = await params.supabase
+		let redemptionQuery = params.supabase
 			.from(tRed)
 			.select("*", { count: "exact", head: true })
 			.eq("coupon_id", row.id)
 			.eq("client_phone", phone);
+
+		if (params.excludeOrderId != null && String(params.excludeOrderId).trim() !== "") {
+			redemptionQuery = redemptionQuery.neq("order_id", params.excludeOrderId);
+		}
+
+		const { count, error } = await redemptionQuery;
 
 		if (!error && typeof count === "number" && count >= maxPer) {
 			return { ok: false, key: "coupon_usage_exhausted_client" };

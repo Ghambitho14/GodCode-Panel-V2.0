@@ -159,6 +159,7 @@ const AdminKanban = ({ columns, isMobile, mobileTab, setMobileTab, moveOrder, se
                                             products={products}
                                             categories={categories}
                                             onOrderSaved={onOrderSaved}
+                                            gridTile={showDesktopSingle}
                                         />
                                     ))
                                 )}

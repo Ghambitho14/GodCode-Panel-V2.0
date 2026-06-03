@@ -14,7 +14,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { validateImageFile } from '@/shared/utils/cloudinary';
 import { formatRut, validateRut } from '@/shared/utils/formatters';
-import { flattenDeliveryAddress, isOrderDelivery } from '@/shared/utils/orderUtils';
+import { flattenDeliveryAddress, isOrderDelivery, resolveOrderCouponCode } from '@/shared/utils/orderUtils';
 import { ordersService } from '../admin/orders/services/orders';
 import { supabase, TABLES } from '@/integrations/supabase';
 import { buildCouponPreview } from '@/lib/discount-coupon';
@@ -100,7 +100,7 @@ function buildInitialState(initialOrder) {
 		delivery_fee: orderType === 'delivery' ? Number(initialOrder.delivery_fee) || 0 : 0,
 		delivery_named_area_id: orderType === 'delivery' ? flatAddr.delivery_named_area_id : '',
 		note: String(initialOrder.note ?? '').replace(/^\[Sucursal: [^\]]+\]\s*\n?/i, '').replace(/\n?\[Envío: [^\]]+\]/i, ''),
-		coupon_code: '',
+		coupon_code: resolveOrderCouponCode(initialOrder),
 	};
 }
 
@@ -146,6 +146,31 @@ export const useOrderEdit = (
 			if (receiptPreview) URL.revokeObjectURL(receiptPreview);
 		};
 	}, [receiptPreview]);
+
+	// Realtime u otros payloads pueden traer discount_coupon_id sin join del código.
+	useEffect(() => {
+		const couponId = initialOrder?.discount_coupon_id;
+		const existingCode = resolveOrderCouponCode(initialOrder);
+		if (!couponId || existingCode) return undefined;
+
+		let cancelled = false;
+		(async () => {
+			const { data, error } = await supabase
+				.from(TABLES.discount_coupons)
+				.select('code')
+				.eq('id', couponId)
+				.maybeSingle();
+			if (cancelled || error || !data?.code) return;
+			setManualOrder((prev) => ({
+				...prev,
+				coupon_code: String(data.code).trim(),
+			}));
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [initialOrder?.id, initialOrder?.discount_coupon_id, initialOrder?.discount_coupons, initialOrder?.coupon_code]);
 
 	const getPrice = useCallback((product) => {
 		if (product?.has_discount && product?.discount_price && Number(product.discount_price) > 0) {
@@ -400,6 +425,7 @@ export const useOrderEdit = (
 					tablesCoupons: TABLES.discount_coupons,
 					tablesClients: TABLES.clients,
 					tablesRedemptions: TABLES.discount_coupon_redemptions,
+					excludeOrderId: initialOrder?.id,
 				});
 				if (cancelled) return;
 				if (!pv.ok) {
@@ -432,7 +458,7 @@ export const useOrderEdit = (
 			cancelled = true;
 			clearTimeout(tid);
 		};
-	}, [branch?.company_id, manualOrder.coupon_code, manualOrder.total, manualOrder.client_phone]);
+	}, [branch?.company_id, initialOrder?.id, manualOrder.coupon_code, manualOrder.total, manualOrder.client_phone]);
 
 	const submitOrder = async () => {
 		if (!initialOrder?.id) {
@@ -466,6 +492,16 @@ export const useOrderEdit = (
 		const rutRaw = String(manualOrder.client_rut || '').trim();
 		if (rutRaw && !validateRut(rutRaw)) {
 			showNotify?.('El RUT ingresado no es válido. Borralo o corrigelo.', 'error');
+			return;
+		}
+
+		const couponRaw = sanitizeInput(manualOrder.coupon_code);
+		if (couponRaw && couponPreview.loading) {
+			showNotify?.('Espera a que se valide el cupón.', 'error');
+			return;
+		}
+		if (couponRaw && couponPreview.variant === 'error') {
+			showNotify?.(couponPreview.message || 'El cupón no es válido.', 'error');
 			return;
 		}
 
@@ -516,6 +552,7 @@ export const useOrderEdit = (
 					manualOrder.order_type === 'delivery' && manualOrder.delivery_km !== ''
 						? Number(String(manualOrder.delivery_km).replace(',', '.'))
 						: null,
+				coupon_code: sanitizeInput(manualOrder.coupon_code) || '',
 			};
 
 			const itemsChanged = JSON.stringify(itemsForOrder) !== initialItemsSnapshot;
@@ -524,6 +561,8 @@ export const useOrderEdit = (
 				itemsChanged,
 				prevTotal: Number(initialOrder.total) || 0,
 				prevStatus: String(initialOrder.status ?? ''),
+				prevCouponCode: initialOrder.coupon_code,
+				companyId: branch.company_id,
 				branchSettings: branchDeliveryCfg,
 				branchName: branch.name,
 				logoUrl: null,

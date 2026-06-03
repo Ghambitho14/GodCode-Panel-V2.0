@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
     Clock, XCircle, Upload, ImageIcon, Printer, Edit2, Copy, Send,
     ChefHat, Banknote, Eye, ChevronDown, ChevronUp,
@@ -10,12 +10,14 @@ import {
     buildOrderDeliveryDriverPack,
     shareDeliveryPackViaWhatsApp,
     getPaymentLabel,
+    getOrderCouponDiscountMeta,
     isOrderDelivery,
     orderDeliveryKanbanSubtitle,
 } from '@/shared/utils/orderUtils';
 import { printOrderTicket } from '@/modules/cash/admin/utils/receiptPrinting';
 import ManualOrderModal from './ManualOrderModal';
 import OrderEditMenu from './manual-order/OrderEditMenu';
+import OrderCardAnchoredMenu from './OrderCardAnchoredMenu';
 
 function buildItemsSummary(items) {
     const list = Array.isArray(items) ? items : [];
@@ -35,6 +37,7 @@ function buildItemsSummary(items) {
 const OrderCard = ({
     order, queueIndex, moveOrder, setReceiptModalOrder, branch, clients,
     logoUrl, companyName, showNotify, products, categories, onOrderSaved,
+    gridTile = false,
 }) => {
     const [editMenuOpen, setEditMenuOpen] = useState(false);
     const [editWizardOpen, setEditWizardOpen] = useState(false);
@@ -53,25 +56,7 @@ const OrderCard = ({
         companyName: companyName ?? null,
     });
 
-    useEffect(() => {
-        if (!ticketMenuOpen) return;
-        const onDown = (ev) => {
-            const el = ticketMenuRef.current;
-            if (el && !el.contains(ev.target)) setTicketMenuOpen(false);
-        };
-        document.addEventListener('mousedown', onDown);
-        return () => document.removeEventListener('mousedown', onDown);
-    }, [ticketMenuOpen]);
-
-    useEffect(() => {
-        if (!editMenuOpen) return;
-        const onDown = (ev) => {
-            const el = editMenuRef.current;
-            if (el && !el.contains(ev.target)) setEditMenuOpen(false);
-        };
-        document.addEventListener('mousedown', onDown);
-        return () => document.removeEventListener('mousedown', onDown);
-    }, [editMenuOpen]);
+    const menuOpen = editMenuOpen || ticketMenuOpen;
 
     const handleMoveToKitchen = (e) => {
         e.stopPropagation();
@@ -127,9 +112,10 @@ const OrderCard = ({
     const clientData = clients?.find((c) => c.id === order.client_id);
     const isVip = clientData?.total_orders >= 5;
     const itemsSummary = useMemo(() => buildItemsSummary(order.items), [order.items]);
+    const discountMeta = useMemo(() => getOrderCouponDiscountMeta(order), [order]);
 
     return (
-        <div className={`kanban-card glass animate-slide-up${expanded ? ' kanban-card--expanded' : ''} ${order.status === 'pending' ? 'urgent-pulse' : ''}`}>
+        <div className={`kanban-card glass animate-slide-up${expanded ? ' kanban-card--expanded' : ''}${menuOpen ? ' kanban-card--menu-open' : ''}${gridTile ? ' kanban-card--grid-tile' : ''} ${order.status === 'pending' ? 'urgent-pulse' : ''}`}>
             <div className="kanban-card-top">
                 <div className="card-header-row">
                     <span className="order-time" title={new Date(order.created_at).toLocaleString()}>
@@ -177,7 +163,13 @@ const OrderCard = ({
                                 <Printer size={14} aria-hidden />
                             </button>
                             {ticketMenuOpen ? (
-                                <div className="order-ticket-menu-panel" role="menu" onClick={(e) => e.stopPropagation()}>
+                                <OrderCardAnchoredMenu
+                                    anchorRef={ticketMenuRef}
+                                    isOpen={ticketMenuOpen}
+                                    onClose={() => setTicketMenuOpen(false)}
+                                    menuWidth={200}
+                                    menuHeight={120}
+                                >
                                     <button type="button" className="order-ticket-menu-item" role="menuitem" onClick={printKitchenAgain}>
                                         <ChefHat size={16} aria-hidden />
                                         Ticket cocina
@@ -186,7 +178,7 @@ const OrderCard = ({
                                         <Banknote size={16} aria-hidden />
                                         Ticket caja
                                     </button>
-                                </div>
+                                </OrderCardAnchoredMenu>
                             ) : null}
                         </div>
                         <span className={`payment-badge ${order.payment_type === 'online' ? 'online' : ''}`}>
@@ -332,7 +324,20 @@ const OrderCard = ({
             <div className="kanban-card-foot">
                 <div className="card-total">
                     <span className="total-label">TOTAL</span>
-                    <span className="total-amount">${order.total.toLocaleString('es-CL')}</span>
+                    <div className="card-total-amounts">
+                        <span className="total-amount">${order.total.toLocaleString('es-CL')}</span>
+                        {discountMeta ? (
+                            <span
+                                className="card-total-before"
+                                aria-label={`Precio antes del descuento: $${discountMeta.originalTotal.toLocaleString('es-CL')}, ${discountMeta.discountPercent}% de descuento`}
+                            >
+                                <span className="card-total-before-price">
+                                    ${discountMeta.originalTotal.toLocaleString('es-CL')}
+                                </span>
+                                <span className="card-total-before-pct">-{discountMeta.discountPercent}%</span>
+                            </span>
+                        ) : null}
+                    </div>
                 </div>
 
                 <div className="card-actions">
