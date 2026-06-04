@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
 	flattenDeliveryAddress,
 	getOrderCouponDiscountMeta,
+	getPaymentLabel,
 	getPaymentSlug,
+	getOrderPaymentBreakdown,
+	buildPaymentBreakdownForOrder,
+	validateCheckoutPayment,
+	computeChangeDue,
+	isMixedPaymentBreakdown,
 	isMenuOrder,
 	isOnlineOrder,
 	isPanelManualOrder,
@@ -108,5 +114,87 @@ describe("orderUtils", () => {
 			discountTotal: 866,
 			discountPercent: 10,
 		});
+	});
+
+	it("getOrderPaymentBreakdown uses stored mixed breakdown", () => {
+		expect(
+			getOrderPaymentBreakdown({
+				total: 3000,
+				payment_type: "tienda",
+				payment_breakdown: { cash: 2000, card: 1000, online: 0 },
+			}),
+		).toEqual({ cash: 2000, card: 1000, online: 0 });
+	});
+
+	it("getOrderPaymentBreakdown falls back to payment_type", () => {
+		expect(
+			getOrderPaymentBreakdown({ total: 3000, payment_type: "tarjeta" }),
+		).toEqual({ cash: 0, card: 3000, online: 0 });
+	});
+
+	it("getPaymentLabel shows mixed breakdown", () => {
+		expect(
+			getPaymentLabel({
+				payment_breakdown: { cash: 2000, card: 1000, online: 0 },
+			}),
+		).toBe("Mixto (Ef. $2.000 + Tarjeta $1.000)");
+	});
+
+	it("buildPaymentBreakdownForOrder returns null for single method", () => {
+		expect(
+			buildPaymentBreakdownForOrder({
+				payment_mode: "single",
+				payment_type: "tienda",
+				total: 3000,
+			}),
+		).toBeNull();
+	});
+
+	it("validateCheckoutPayment requires tender for cash", () => {
+		expect(
+			validateCheckoutPayment({
+				payment_mode: "single",
+				payment_type: "tienda",
+				cash_tendered: 10000,
+				totalToPay: 3000,
+			}).valid,
+		).toBe(true);
+		expect(
+			validateCheckoutPayment({
+				payment_mode: "single",
+				payment_type: "tienda",
+				cash_tendered: 2000,
+				totalToPay: 3000,
+			}).valid,
+		).toBe(false);
+	});
+
+	it("validateCheckoutPayment validates mixed split", () => {
+		expect(
+			validateCheckoutPayment({
+				payment_mode: "mixed",
+				cash_amount: 2000,
+				card_amount: 1000,
+				cash_tendered: 5000,
+				totalToPay: 3000,
+			}).valid,
+		).toBe(true);
+		expect(
+			validateCheckoutPayment({
+				payment_mode: "mixed",
+				cash_amount: 1500,
+				card_amount: 1000,
+				totalToPay: 3000,
+			}).valid,
+		).toBe(false);
+	});
+
+	it("computeChangeDue subtracts cash due", () => {
+		expect(computeChangeDue(10000, 3000)).toBe(7000);
+	});
+
+	it("isMixedPaymentBreakdown detects multiple methods", () => {
+		expect(isMixedPaymentBreakdown({ cash: 2000, card: 1000, online: 0 })).toBe(true);
+		expect(isMixedPaymentBreakdown({ cash: 3000, card: 0, online: 0 })).toBe(false);
 	});
 });

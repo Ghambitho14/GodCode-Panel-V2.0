@@ -6,6 +6,10 @@ const initialFormState = {
     client_rut: '1-9',
     client_phone: '+56 9 0000 0000',
     payment_type: 'tienda',
+    payment_mode: 'single',
+    cash_amount: 0,
+    card_amount: 0,
+    cash_tendered: '',
     order_type: 'pickup',
     delivery_address: '',
     delivery_reference: '',
@@ -84,7 +88,44 @@ export const useManualOrderForm = () => {
     }, []);
 
     const updatePaymentType = useCallback((type) => {
-        setForm(prev => ({ ...prev, payment_type: type }));
+        setForm(prev => ({
+            ...prev,
+            payment_type: type,
+            payment_mode: 'single',
+            cash_amount: 0,
+            card_amount: 0,
+            cash_tendered: '',
+        }));
+    }, []);
+
+    const updatePaymentMode = useCallback((mode) => {
+        setForm(prev => ({
+            ...prev,
+            payment_mode: mode === 'mixed' ? 'mixed' : 'single',
+            cash_amount: mode === 'mixed' ? prev.cash_amount : 0,
+            card_amount: mode === 'mixed' ? prev.card_amount : 0,
+            cash_tendered: '',
+            ...(mode === 'mixed' ? { payment_type: 'tienda' } : {}),
+        }));
+    }, []);
+
+    const updateCashAmount = useCallback((val) => {
+        const parsed = val === '' || val == null ? 0 : Math.max(0, Math.round(Number(String(val).replace(/\D/g, '')) || 0));
+        setForm(prev => ({ ...prev, cash_amount: parsed, cash_tendered: '' }));
+    }, []);
+
+    const updateCardAmount = useCallback((val) => {
+        const parsed = val === '' || val == null ? 0 : Math.max(0, Math.round(Number(String(val).replace(/\D/g, '')) || 0));
+        setForm(prev => ({ ...prev, card_amount: parsed }));
+    }, []);
+
+    const updateCashTendered = useCallback((val) => {
+        if (val === '' || val == null) {
+            setForm(prev => ({ ...prev, cash_tendered: '' }));
+            return;
+        }
+        const parsed = Math.max(0, Math.round(Number(String(val).replace(/\D/g, '')) || 0));
+        setForm(prev => ({ ...prev, cash_tendered: parsed }));
     }, []);
 
     const handleRutChange = useCallback((e) => {
@@ -158,6 +199,10 @@ export const useManualOrderForm = () => {
         updateDeliveryFee,
         updateDeliveryNamedAreaId,
         updatePaymentType,
+        updatePaymentMode,
+        updateCashAmount,
+        updateCardAmount,
+        updateCashTendered,
         handleRutChange,
         handlePhoneChange,
         applyClientRecord,

@@ -7,7 +7,7 @@ import {
 } from '../utils/cashMovementKinds';
 import { computeShiftTotals } from '../utils/cashTotals';
 import { getExpectedByMethod } from '../utils/shiftCloseReconciliation';
-import { getCashMovementPaymentMethod } from '@/shared/utils/orderUtils';
+import { planSaleMovements, planRefundMovements } from '../utils/orderPaymentMovements';
 
 export const useCashSystem = (showNotify, branchId) => {
     const [activeShift, setActiveShift] = useState(null);
@@ -271,7 +271,6 @@ export const useCashSystem = (showNotify, branchId) => {
      * Registra una venta automáticamente
      */
     const registerSale = useCallback(async (order) => {
-        // [ROBUSTEZ] Usar getTargetShift en lugar de depender solo de activeShift
         const targetShift = await getTargetShift(order.branch_id);
         if (!targetShift) {
             if (showNotify) showNotify('No hay caja abierta para esta sucursal', 'error');
@@ -279,8 +278,6 @@ export const useCashSystem = (showNotify, branchId) => {
         }
 
         try {
-            // [MEJORA ROBUSTEZ] Verificar balance neto de la orden en este turno
-            // Esto permite manejar casos de: Venta -> Cancelación -> Venta (Re-ingreso)
             const { data: movements } = await supabase
                 .from(TABLES.cash_movements)
                 .select('type, amount, payment_method')
@@ -288,36 +285,23 @@ export const useCashSystem = (showNotify, branchId) => {
                 .eq('order_id', order.id);
 
             const saleAmount = Math.round(Number(order.total) || 0);
-            if (saleAmount <= 0) return false; // No registrar ventas de valor 0 o inválidas
+            if (saleAmount <= 0) return false;
 
-            const currentNet = (movements || []).reduce(
-                (acc, m) => acc + (m.type === 'sale' ? Number(m.amount) || 0 : -(Number(m.amount) || 0)),
-                0,
-            );
+            const planned = planSaleMovements(order, movements || []);
+            if (planned.length === 0) return true;
 
-            // Si el balance neto ya es igual al total (o muy cercano), ya está registrada.
-            if (Math.abs(currentNet - saleAmount) < 5) return true;
+            for (const movement of planned) {
+                const { error } = await supabase.rpc('cash_add_movement', {
+                    p_shift_id: targetShift.id,
+                    p_type: movement.type,
+                    p_amount: movement.amount,
+                    p_description: `Venta #${String(order.id).slice(-4)} - ${order.client_name}`,
+                    p_payment_method: movement.payment_method,
+                    p_order_id: order.id,
+                });
+                if (error) throw error;
+            }
 
-            const movement = {
-                shift_id: targetShift.id,
-                type: 'sale',
-                amount: saleAmount,
-                description: `Venta #${String(order.id).slice(-4)} - ${order.client_name}`,
-                payment_method: getCashMovementPaymentMethod(order, movements || []),
-                order_id: order.id
-            };
-
-            const { error } = await supabase.rpc('cash_add_movement', {
-                p_shift_id: movement.shift_id,
-                p_type: movement.type,
-                p_amount: movement.amount,
-                p_description: movement.description,
-                p_payment_method: movement.payment_method,
-                p_order_id: movement.order_id
-            });
-            if (error) throw error;
-
-            // Solo recargar si el turno afectado es el que estamos viendo
             if (activeShift && activeShift.id === targetShift.id) {
                 await loadActiveShift();
             }
@@ -332,7 +316,6 @@ export const useCashSystem = (showNotify, branchId) => {
      * Registra una devolución
      */
     const registerRefund = useCallback(async (order) => {
-        // [ROBUSTEZ] Usar getTargetShift para devoluciones también
         const targetShift = await getTargetShift(order.branch_id);
         if (!targetShift) {
             if (showNotify) showNotify('No hay caja abierta para esta sucursal', 'error');
@@ -340,42 +323,26 @@ export const useCashSystem = (showNotify, branchId) => {
         }
 
         try {
-            // [MEJORA ROBUSTEZ] Verificar si ya está reembolsada (Neto ~ 0)
             const { data: movements } = await supabase
                 .from(TABLES.cash_movements)
                 .select('type, amount, payment_method')
                 .eq('shift_id', targetShift.id)
                 .eq('order_id', order.id);
 
-            const currentNet = (movements || []).reduce(
-                (acc, m) => acc + (m.type === 'sale' ? Number(m.amount) || 0 : -(Number(m.amount) || 0)),
-                0,
-            );
+            const planned = planRefundMovements(order, movements || []);
+            if (planned.length === 0) return true;
 
-            // Si el balance neto es 0 (o negativo), ya está reembolsada o nunca se cobró.
-            if (currentNet <= 5) return true;
-
-            const refundAmount = Math.round(currentNet);
-            if (refundAmount <= 0) return true;
-
-            const movement = {
-                shift_id: targetShift.id,
-                type: 'expense',
-                amount: refundAmount,
-                description: `Devolución #${String(order.id).slice(-4)} - ${order.client_name}`,
-                payment_method: getCashMovementPaymentMethod(order, movements || []),
-                order_id: order.id
-            };
-
-            const { error } = await supabase.rpc('cash_add_movement', {
-                p_shift_id: movement.shift_id,
-                p_type: movement.type,
-                p_amount: movement.amount,
-                p_description: movement.description,
-                p_payment_method: movement.payment_method,
-                p_order_id: movement.order_id
-            });
-            if (error) throw error;
+            for (const movement of planned) {
+                const { error } = await supabase.rpc('cash_add_movement', {
+                    p_shift_id: targetShift.id,
+                    p_type: movement.type,
+                    p_amount: movement.amount,
+                    p_description: `Devolución #${String(order.id).slice(-4)} - ${order.client_name}`,
+                    p_payment_method: movement.payment_method,
+                    p_order_id: order.id,
+                });
+                if (error) throw error;
+            }
 
             if (activeShift && activeShift.id === targetShift.id) {
                 await loadActiveShift();

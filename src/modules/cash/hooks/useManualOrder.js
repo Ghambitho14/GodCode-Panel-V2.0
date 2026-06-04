@@ -5,6 +5,7 @@ import { useCouponValidation } from './manual-order/useCouponValidation';
 import { useReceiptUpload } from './manual-order/useReceiptUpload';
 import { createManualOrder } from '../admin/orders/services/orders';
 import { validateRut } from '@/shared/utils/formatters';
+import { buildPaymentBreakdownForOrder } from '@/shared/utils/orderUtils';
 import { effectiveDeliveryPricingMode } from '@/lib/delivery-settings';
 
 /**
@@ -39,6 +40,10 @@ export const useManualOrder = (showNotify, onOrderSaved, onClose, branch, branch
         updateDeliveryFee,
         updateDeliveryNamedAreaId,
         updatePaymentType,
+        updatePaymentMode,
+        updateCashAmount,
+        updateCardAmount,
+        updateCashTendered,
         handleRutChange,
         handlePhoneChange,
         applyClientRecord,
@@ -206,6 +211,22 @@ export const useManualOrder = (showNotify, onOrderSaved, onClose, branch, branch
             sanitizedOrder.items = itemsForOrder;
             sanitizedOrder.total = totalForOrder;
 
+            const couponDisc =
+                couponPreview?.variant === 'success' && Number(couponPreview.discount) > 0
+                    ? Math.min(totalForOrder, Number(couponPreview.discount))
+                    : 0;
+            const deliveryFeeAmt =
+                form.order_type === 'delivery' ? (Number(form.delivery_fee) || 0) : 0;
+            const checkoutTotal = Math.max(0, totalForOrder - couponDisc + deliveryFeeAmt);
+
+            sanitizedOrder.payment_breakdown = buildPaymentBreakdownForOrder({
+                payment_mode: form.payment_mode,
+                payment_type: form.payment_type,
+                cash_amount: form.cash_amount,
+                card_amount: form.card_amount,
+                total: checkoutTotal,
+            });
+
             const result = await createManualOrder(sanitizedOrder, receiptFile);
             const createdOrder = result?.order ?? result;
 
@@ -237,6 +258,10 @@ export const useManualOrder = (showNotify, onOrderSaved, onClose, branch, branch
         couponPreview,
         updateNote,
         updatePaymentType: handlePaymentTypeChange,
+        updatePaymentMode,
+        updateCashAmount,
+        updateCardAmount,
+        updateCashTendered,
         handleRutChange,
         handlePhoneChange,
         applyClientRecord,

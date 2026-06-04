@@ -15,13 +15,186 @@ export const PAYMENT_METHOD_LABELS = {
 /** Métodos que se consideran "pago online" para desglose y filtros. */
 const ONLINE_SPECIFIC_METHODS = new Set(['pago_movil', 'zelle', 'transferencia_bancaria', 'stripe', 'mercadopago', 'paypal']);
 
+/** @typedef {{ cash: number; card: number; online: number }} PaymentBreakdown */
+
+/**
+ * Normaliza un desglose de pago desde JSONB u objeto parcial.
+ * @param {unknown} raw
+ * @returns {PaymentBreakdown}
+ */
+export function normalizePaymentBreakdown(raw) {
+	if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+		return { cash: 0, card: 0, online: 0 };
+	}
+	const o = /** @type {Record<string, unknown>} */ (raw);
+	return {
+		cash: Math.max(0, Math.round(Number(o.cash) || 0)),
+		card: Math.max(0, Math.round(Number(o.card) || 0)),
+		online: Math.max(0, Math.round(Number(o.online) || 0)),
+	};
+}
+
+/**
+ * @param {PaymentBreakdown | null | undefined} breakdown
+ * @returns {number}
+ */
+export function countActiveBreakdownMethods(breakdown) {
+	const b = normalizePaymentBreakdown(breakdown);
+	return ['cash', 'card', 'online'].filter((key) => b[key] > 0).length;
+}
+
+/**
+ * @param {PaymentBreakdown | null | undefined} breakdown
+ * @returns {boolean}
+ */
+export function isMixedPaymentBreakdown(breakdown) {
+	return countActiveBreakdownMethods(breakdown) > 1;
+}
+
+/**
+ * @param {string | null | undefined} paymentType
+ * @returns {'cash' | 'card' | 'online'}
+ */
+export function paymentTypeToBreakdownMethod(paymentType) {
+	const pt = String(paymentType ?? '').toLowerCase();
+	if (pt === 'online' || pt === 'transferencia') return 'online';
+	if (pt === 'tarjeta' || pt === 'card') return 'card';
+	return 'cash';
+}
+
+/**
+ * Desglose efectivo para caja: usa payment_breakdown si es mixto; si no, infiere del total.
+ * @param {Record<string, unknown> | null | undefined} order
+ * @returns {PaymentBreakdown}
+ */
+export function getOrderPaymentBreakdown(order) {
+	if (!order) return { cash: 0, card: 0, online: 0 };
+
+	const stored = normalizePaymentBreakdown(order.payment_breakdown);
+	if (isMixedPaymentBreakdown(stored)) {
+		return stored;
+	}
+
+	const total = Math.round(Number(order.total) || 0);
+	const method = paymentTypeToBreakdownMethod(String(order.payment_type ?? ''));
+	return {
+		cash: method === 'cash' ? total : 0,
+		card: method === 'card' ? total : 0,
+		online: method === 'online' ? total : 0,
+	};
+}
+
+/**
+ * Arma el JSONB a persistir cuando hay pago mixto.
+ * @param {{ payment_mode?: string; payment_type?: string; cash_amount?: number; card_amount?: number; total?: number }} params
+ * @returns {PaymentBreakdown | null}
+ */
+export function buildPaymentBreakdownForOrder({
+	payment_mode,
+	payment_type,
+	cash_amount,
+	card_amount,
+	total,
+}) {
+	if (payment_mode === 'mixed') {
+		const breakdown = {
+			cash: Math.max(0, Math.round(Number(cash_amount) || 0)),
+			card: Math.max(0, Math.round(Number(card_amount) || 0)),
+			online: 0,
+		};
+		if (isMixedPaymentBreakdown(breakdown)) {
+			return breakdown;
+		}
+	}
+	void payment_type;
+	void total;
+	return null;
+}
+
+/**
+ * Monto en efectivo que el cliente debe pagar (para calculadora de vuelto).
+ * @param {{ payment_mode?: string; payment_type?: string; cash_amount?: number; totalToPay?: number }} params
+ * @returns {number}
+ */
+export function getCashDueAmount({ payment_mode, payment_type, cash_amount, totalToPay }) {
+	if (payment_mode === 'mixed') {
+		return Math.max(0, Math.round(Number(cash_amount) || 0));
+	}
+	if (payment_type === 'tienda') {
+		return Math.round(Number(totalToPay) || 0);
+	}
+	return 0;
+}
+
+/**
+ * @param {number | string | null | undefined} cashTendered
+ * @param {number | string | null | undefined} cashDue
+ * @returns {number}
+ */
+export function computeChangeDue(cashTendered, cashDue) {
+	const tendered = Math.round(Number(cashTendered) || 0);
+	const due = Math.round(Number(cashDue) || 0);
+	return Math.max(0, tendered - due);
+}
+
+/**
+ * Valida montos de checkout (mixto, vuelto en efectivo).
+ * @param {{ payment_mode?: string; payment_type?: string; cash_amount?: number; card_amount?: number; cash_tendered?: number; totalToPay?: number }} params
+ * @returns {{ valid: boolean; reason?: string }}
+ */
+export function validateCheckoutPayment({
+	payment_mode,
+	payment_type,
+	cash_amount,
+	card_amount,
+	cash_tendered,
+	totalToPay,
+}) {
+	const total = Math.round(Number(totalToPay) || 0);
+	if (total <= 0) return { valid: true };
+
+	if (payment_mode === 'mixed') {
+		const cash = Math.max(0, Math.round(Number(cash_amount) || 0));
+		const card = Math.max(0, Math.round(Number(card_amount) || 0));
+		if (Math.abs(cash + card - total) > 1) {
+			return { valid: false, reason: 'split_mismatch' };
+		}
+		if (cash > 0) {
+			const tendered = Math.round(Number(cash_tendered) || 0);
+			if (tendered < cash) {
+				return { valid: false, reason: 'insufficient_tender' };
+			}
+		}
+		return { valid: true };
+	}
+
+	if (payment_type === 'tienda') {
+		const tendered = Math.round(Number(cash_tendered) || 0);
+		if (tendered < total) {
+			return { valid: false, reason: 'insufficient_tender' };
+		}
+	}
+
+	return { valid: true };
+}
+
 /**
  * Devuelve la etiqueta a mostrar para el método de pago (usa payment_method_specific si existe).
- * @param {{ payment_type?: string; payment_method_specific?: string | null }} order
+ * @param {{ payment_type?: string; payment_method_specific?: string | null; payment_breakdown?: unknown }} order
  * @returns {string}
  */
 export function getPaymentLabel(order) {
 	if (!order) return '—';
+
+	if (isMixedPaymentBreakdown(order.payment_breakdown)) {
+		const b = normalizePaymentBreakdown(order.payment_breakdown);
+		const parts = [];
+		if (b.cash > 0) parts.push(`Ef. $${b.cash.toLocaleString('es-CL')}`);
+		if (b.card > 0) parts.push(`Tarjeta $${b.card.toLocaleString('es-CL')}`);
+		if (b.online > 0) parts.push(`Transf. $${b.online.toLocaleString('es-CL')}`);
+		return parts.length ? `Mixto (${parts.join(' + ')})` : 'Mixto';
+	}
+
 	const specific = order.payment_method_specific;
 	if (specific && PAYMENT_METHOD_LABELS[specific]) return PAYMENT_METHOD_LABELS[specific];
 	const type = order.payment_type || '';
@@ -676,6 +849,9 @@ export function sanitizeOrder(rawOrder) {
 		created_at: rawOrder.created_at || new Date().toISOString(),
 		payment_type: rawOrder.payment_type || 'unknown',
 		payment_method_specific: rawOrder.payment_method_specific ?? null,
+		payment_breakdown: rawOrder.payment_breakdown
+			? normalizePaymentBreakdown(rawOrder.payment_breakdown)
+			: null,
 	};
 
 	if (!normalized.channel && isOrderDelivery(normalized)) {

@@ -29,4 +29,23 @@ describe("useManualOrderForm", () => {
 		act(() => result.current.resetForm());
 		expect(result.current.form.client_name).toBe("CAJA");
 	});
+
+	it("updatePaymentMode toggles mixed payment fields", () => {
+		const { result } = renderHook(() => useManualOrderForm());
+		act(() => result.current.updatePaymentMode("mixed"));
+		expect(result.current.form.payment_mode).toBe("mixed");
+		act(() => result.current.updateCashAmount(2000));
+		act(() => result.current.updateCardAmount(1000));
+		expect(result.current.form.cash_amount).toBe(2000);
+		expect(result.current.form.card_amount).toBe(1000);
+		act(() => result.current.updatePaymentType("tarjeta"));
+		expect(result.current.form.payment_mode).toBe("single");
+		expect(result.current.form.cash_amount).toBe(0);
+	});
+
+	it("updateCashTendered stores tender amount", () => {
+		const { result } = renderHook(() => useManualOrderForm());
+		act(() => result.current.updateCashTendered("10000"));
+		expect(result.current.form.cash_tendered).toBe(10000);
+	});
 });

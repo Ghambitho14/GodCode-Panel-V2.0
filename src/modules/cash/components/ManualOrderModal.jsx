@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, CheckCircle2, MessageCircle } from 'lucide-react';
+import { X, CheckCircle2, MessageCircle, ShoppingBag } from 'lucide-react';
+import { formatCurrency } from '@/shared/utils/formatters';
 import { useManualOrder } from '../hooks/useManualOrder';
 import { useOrderEdit } from '../hooks/useOrderEdit';
 import { branchSettingsService } from '../services/branchSettingsService';
 import { normalizeDeliverySettings } from '@/lib/delivery-settings';
-import { buildDeliveryAddressRecord } from '@/shared/utils/orderUtils';
+import { buildDeliveryAddressRecord, validateCheckoutPayment } from '@/shared/utils/orderUtils';
 import { printOrderTicket } from '@/modules/cash/admin/utils/receiptPrinting';
 
 // Subcomponentes presentacionales
@@ -51,7 +52,8 @@ function normalizeCartUpsellCatalog(catalog, kind) {
     });
 }
 
-const WIZARD_STEPS = 2;
+const DESKTOP_WIZARD_STEPS = 2;
+const MOBILE_WIZARD_STEPS = 3;
 
 const ManualOrderModal = ({
     isOpen,
@@ -98,7 +100,9 @@ const ManualOrderModal = ({
     const {
         manualOrder, loading, rutValid, phoneValid,
         receiptFile, receiptPreview,
-        updateClientName, updateCouponCode, couponPreview, updateNote, updatePaymentType, handleRutChange,
+        updateClientName, updateCouponCode, couponPreview, updateNote, updatePaymentType,
+        updatePaymentMode, updateCashAmount, updateCardAmount, updateCashTendered,
+        handleRutChange,
         handlePhoneChange, handleFileChange, removeReceipt, addItem, updateQuantity, removeItem,
         updateItemNote,
         updateOrderType, updateDeliveryAddress, updateDeliveryReference, updateDeliveryKm,
@@ -118,30 +122,45 @@ const ManualOrderModal = ({
     const [touchEnd, setTouchEnd] = useState(null);
     const wasOpenRef = useRef(false);
 
-    const resolveOpenStep = () => {
+    const wizardStepCount = isCompactNav ? MOBILE_WIZARD_STEPS : DESKTOP_WIZARD_STEPS;
+
+    const resolveOpenStep = (compact) => {
         if (!isEditMode) return 1;
         const n = Number(initialStep);
         if (!Number.isFinite(n)) return 1;
         const rounded = Math.round(n);
-        const legacyMapped = rounded >= 3 ? 2 : rounded;
-        return Math.min(WIZARD_STEPS, Math.max(1, legacyMapped));
+        const maxSteps = compact ? MOBILE_WIZARD_STEPS : DESKTOP_WIZARD_STEPS;
+        const legacyMapped = compact
+            ? (rounded >= 3 ? 3 : Math.max(1, rounded))
+            : (rounded >= 3 ? 2 : rounded);
+        return Math.min(maxSteps, Math.max(1, legacyMapped));
     };
 
     useEffect(() => {
         if (isOpen && !wasOpenRef.current) {
             resetOrder();
-            setOrderStep(resolveOpenStep());
+            setOrderStep(resolveOpenStep(isCompactNav));
         }
         wasOpenRef.current = isOpen;
-    }, [isOpen, resetOrder, isEditMode, initialStep]);
+    }, [isOpen, resetOrder, isEditMode, initialStep, isCompactNav]);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
         const mq = window.matchMedia('(max-width: 767px)');
         const sync = () => setIsCompactNav(mq.matches);
+        sync();
         mq.addEventListener('change', sync);
         return () => mq.removeEventListener('change', sync);
     }, []);
+
+    useEffect(() => {
+        setOrderStep((prev) => {
+            const max = isCompactNav ? MOBILE_WIZARD_STEPS : DESKTOP_WIZARD_STEPS;
+            if (prev <= max) return prev;
+            if (!isCompactNav && prev === 3) return 2;
+            return max;
+        });
+    }, [isCompactNav]);
 
     // Cargar Catálogos de Upsell de la Sucursal al abrir
     useEffect(() => {
@@ -253,14 +272,35 @@ const ManualOrderModal = ({
         if (distance < -50) onClose(); // Swipe hacia abajo
     };
 
+    const couponDiscountApplied =
+        couponPreview?.variant === 'success' && Number(couponPreview.discount) > 0
+            ? Math.min(manualOrder.total ?? 0, Number(couponPreview.discount))
+            : 0;
+    const deliveryFeeAmt =
+        manualOrder.order_type === 'delivery' ? (Number(manualOrder.delivery_fee) || 0) : 0;
+    const totalToPay = Math.max(0, (manualOrder.total ?? 0) - couponDiscountApplied + deliveryFeeAmt);
+
+    const isPaymentValid = () => {
+        if (totalToPay <= 0) return true;
+        return validateCheckoutPayment({
+            payment_mode: manualOrder.payment_mode,
+            payment_type: manualOrder.payment_type,
+            cash_amount: manualOrder.cash_amount,
+            card_amount: manualOrder.card_amount,
+            cash_tendered: manualOrder.cash_tendered,
+            totalToPay,
+        }).valid;
+    };
+
     // --- VALIDACIÓN GLOBAL DEL FORMULARIO ---
     const isFormValid = () => {
         const hasItems = manualOrder.items && manualOrder.items.length > 0;
         const hasClientName = manualOrder.client_name && manualOrder.client_name.trim().length >= 3;
         const hasPaymentType = !!manualOrder.payment_type;
+        const paymentOk = isPaymentValid();
 
         if (isEditMode) {
-            return hasItems && hasClientName && hasPaymentType;
+            return hasItems && hasClientName && hasPaymentType && paymentOk;
         }
 
         const exactRutLength = manualOrder.client_rut?.trim().length || 0;
@@ -295,18 +335,66 @@ const ManualOrderModal = ({
                 addrOk
             );
 
-        return hasItems && hasClientName && hasPaymentType && isRutRequiredAndValid && isPhoneStrictlyValid && isDeliveryValid;
+        return hasItems && hasClientName && hasPaymentType && paymentOk && isRutRequiredAndValid && isPhoneStrictlyValid && isDeliveryValid;
+    };
+
+    const isDeliveryValidForOrder = () => {
+        const namedAreasMode = branchDeliveryCfg &&
+            manualOrder.order_type === 'delivery' &&
+            String(branchDeliveryCfg.pricingMode).toLowerCase() === 'named' &&
+            (branchDeliveryCfg.namedAreas?.length ?? 0) > 0;
+
+        const distanceMode = branchDeliveryCfg &&
+            manualOrder.order_type === 'delivery' &&
+            String(branchDeliveryCfg.pricingMode).toLowerCase() === 'distance';
+
+        const hasNamedZoneOk = !namedAreasMode || String(manualOrder.delivery_named_area_id ?? '').trim().length > 0;
+        const addrOk = Boolean(manualOrder.delivery_address && manualOrder.delivery_address.trim().length >= 5);
+
+        return manualOrder.order_type !== 'delivery'
+            || (namedAreasMode && hasNamedZoneOk)
+            || (distanceMode && addrOk)
+            || (
+                !namedAreasMode &&
+                !distanceMode &&
+                manualOrder.order_type === 'delivery' &&
+                branchDeliveryCfg &&
+                (addrOk || String(manualOrder.delivery_named_area_id ?? '').trim().length > 0)
+            )
+            || (
+                manualOrder.order_type === 'delivery' &&
+                !branchDeliveryCfg &&
+                addrOk
+            );
+    };
+
+    const isClientStepValid = () => {
+        const hasClientName = manualOrder.client_name && manualOrder.client_name.trim().length >= 3;
+        return Boolean(hasClientName && isDeliveryValidForOrder());
     };
 
     const hasCartItems = (manualOrder.items?.length ?? 0) > 0;
+    const cartItemCount = (manualOrder.items ?? []).reduce((acc, i) => acc + (Number(i.quantity) || 1), 0);
 
     const goNextStep = () => {
-        if (orderStep !== 1) return;
-        if (!hasCartItems) {
-            showNotify?.('Agrega al menos un producto al carrito.', 'warning');
+        if (orderStep >= wizardStepCount) return;
+
+        if (orderStep === 1) {
+            if (!hasCartItems) {
+                showNotify?.('Agrega al menos un producto al carrito.', 'warning');
+                return;
+            }
+            setOrderStep(2);
             return;
         }
-        setOrderStep(2);
+
+        if (isCompactNav && orderStep === 2) {
+            if (!isClientStepValid()) {
+                showNotify?.('Completa el nombre del cliente y los datos de entrega.', 'warning');
+                return;
+            }
+            setOrderStep(3);
+        }
     };
 
     const goPrevStep = () => {
@@ -349,7 +437,9 @@ const ManualOrderModal = ({
         return text.replace(/[<>]/g, '');
     };
 
-    const stepLabels = ['Productos', 'Cliente y pago'];
+    const stepLabels = isCompactNav
+        ? ['Productos', 'Cliente', 'Pago']
+        : ['Productos', 'Cliente y pago'];
 
     const noteSection = (
         <div className="manual-order-section manual-order-section--note">
@@ -470,6 +560,10 @@ const ManualOrderModal = ({
         updateCouponCode,
         couponPreview,
         updatePaymentType,
+        updatePaymentMode,
+        updateCashAmount,
+        updateCardAmount,
+        updateCashTendered,
         receiptFile,
         receiptPreview,
         handleFileChange,
@@ -481,7 +575,123 @@ const ManualOrderModal = ({
         confirmLabel: isEditMode ? 'GUARDAR CAMBIOS' : 'CONFIRMAR PEDIDO',
         onCancelOrder: canCancelOrder ? handleCancelOrder : null,
         isEditMode,
+        hideCheckoutActions: false,
     };
+
+    const paymentDetailsMobileProps = {
+        ...paymentDetailsProps,
+        goPrevStep: null,
+        hideCheckoutActions: true,
+    };
+
+    const catalogBlock = (
+        <ManualOrderCatalog
+            products={products}
+            categories={categories}
+            cartUpsellCatalogs={cartUpsellCatalogs}
+            addItem={addItem}
+            updateQuantity={updateQuantity}
+            removeItem={removeItem}
+            getQty={(id) => {
+                const key = id == null ? '' : String(id);
+                return manualOrder.items.find((i) => String(i.id) === key)?.quantity || 0;
+            }}
+        />
+    );
+
+    const mobileDock = isCompactNav ? (
+        <div className="manual-order-mobile-dock" role="group" aria-label="Navegación del pedido">
+            {orderStep === 1 ? (
+                <>
+                    <div className="manual-order-mobile-cart-bar" aria-live="polite">
+                        <ShoppingBag size={18} aria-hidden />
+                        <span className="manual-order-mobile-cart-bar__text">
+                            {hasCartItems
+                                ? `${cartItemCount} ${cartItemCount === 1 ? 'ítem' : 'ítems'} · ${formatCurrency(manualOrder.total ?? 0)}`
+                                : 'Carrito vacío'}
+                        </span>
+                    </div>
+                    {showEditSaveOnFooter ? (
+                        <div className="manual-order-mobile-dock__actions manual-order-mobile-dock__actions--edit">
+                            <button
+                                type="button"
+                                className="manual-order-steps-nav__btn manual-order-steps-nav__btn--next-secondary"
+                                onClick={goNextStep}
+                                disabled={!hasCartItems}
+                            >
+                                Siguiente
+                            </button>
+                            <button
+                                type="button"
+                                className="manual-order-steps-nav__btn manual-order-steps-nav__btn--save"
+                                onClick={submitOrder}
+                                disabled={loading}
+                            >
+                                {loading ? 'GUARDANDO...' : 'Guardar'}
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            type="button"
+                            className="manual-order-steps-nav__btn manual-order-steps-nav__btn--next"
+                            onClick={goNextStep}
+                            disabled={!hasCartItems}
+                        >
+                            Siguiente
+                        </button>
+                    )}
+                </>
+            ) : null}
+            {orderStep === 2 ? (
+                <div className="manual-order-mobile-dock__actions">
+                    <button
+                        type="button"
+                        className="manual-order-steps-nav__btn manual-order-steps-nav__btn--back"
+                        onClick={goPrevStep}
+                    >
+                        Atrás
+                    </button>
+                    <button
+                        type="button"
+                        className="manual-order-steps-nav__btn manual-order-steps-nav__btn--next"
+                        onClick={goNextStep}
+                        disabled={!isClientStepValid()}
+                    >
+                        Siguiente
+                    </button>
+                </div>
+            ) : null}
+            {orderStep === 3 ? (
+                <div className="manual-order-mobile-dock__actions manual-order-mobile-dock__actions--confirm">
+                    <button
+                        type="button"
+                        className="manual-order-steps-nav__btn manual-order-steps-nav__btn--back"
+                        onClick={goPrevStep}
+                    >
+                        Atrás
+                    </button>
+                    {canCancelOrder ? (
+                        <button
+                            type="button"
+                            className="manual-order-steps-nav__btn manual-order-steps-nav__btn--back manual-order-checkout-cancel"
+                            onClick={handleCancelOrder}
+                            disabled={loading}
+                        >
+                            Cancelar
+                        </button>
+                    ) : null}
+                    <button
+                        type="button"
+                        className="manual-order-confirm-btn manual-order-mobile-dock__confirm"
+                        onClick={submitOrder}
+                        disabled={loading || !isFormValid()}
+                    >
+                        {loading ? 'PROCESANDO...' : (isEditMode ? 'GUARDAR' : 'CONFIRMAR')}
+                    </button>
+                </div>
+            ) : null}
+        </div>
+    ) : null;
 
     const sidebarSection = (
         <div className="manual-order-sidebar">
@@ -519,7 +729,7 @@ const ManualOrderModal = ({
     const modalUi = (
         <div className="manual-order-overlay" onClick={onClose}>
             <div
-                className={`manual-order-container manual-order-wizard manual-order-step-${orderStep}`}
+                className={`manual-order-container manual-order-wizard manual-order-step-${orderStep}${isCompactNav ? ' manual-order--mobile' : ''}`}
                 onClick={e => e.stopPropagation()}
             >
                 {/* ÁREA INVISIBLE PARA GESTOS */}
@@ -537,7 +747,7 @@ const ManualOrderModal = ({
 
                 <div
                     className={`manual-order-steps-progress${isEditMode ? ' manual-order-steps-progress--editable' : ''}`}
-                    aria-label={`Paso ${orderStep} de ${WIZARD_STEPS}`}
+                    aria-label={`Paso ${orderStep} de ${wizardStepCount}`}
                 >
                     {stepLabels.map((label, idx) => {
                         const n = idx + 1;
@@ -574,39 +784,36 @@ const ManualOrderModal = ({
                     })}
                 </div>
 
-                <div className="manual-order-body">
-                    <div className="manual-order-stage">
-                        <ManualOrderCatalog
-                            products={products}
-                            categories={categories}
-                            cartUpsellCatalogs={cartUpsellCatalogs}
-                            addItem={addItem}
-                            updateQuantity={updateQuantity}
-                            removeItem={removeItem}
-                            getQty={(id) => {
-                                const key = id == null ? '' : String(id);
-                                return manualOrder.items.find((i) => String(i.id) === key)?.quantity || 0;
-                            }}
-                        />
-                    </div>
-                    {sidebarSection}
-                </div>
-
-                {isCompactNav && (
-                    <div className="manual-order-steps-nav">
+                {isCompactNav ? (
+                    <div className="manual-order-mobile-scene">
+                        {orderStep === 1 ? (
+                            <div className="manual-order-stage manual-order-mobile-stage--catalog">
+                                {catalogBlock}
+                            </div>
+                        ) : null}
                         {orderStep === 2 ? (
-                            <button
-                                type="button"
-                                className="manual-order-steps-nav__btn manual-order-steps-nav__btn--back"
-                                onClick={goPrevStep}
-                            >
-                                Atrás
-                            </button>
-                        ) : (
-                            wizardNavButtons
-                        )}
+                            <div className="manual-order-mobile-panel manual-order-mobile-panel--client">
+                                {clientSection}
+                                {noteSection}
+                            </div>
+                        ) : null}
+                        {orderStep === 3 ? (
+                            <div className="manual-order-mobile-panel manual-order-mobile-panel--payment">
+                                <OrderSummary {...orderSummaryProps} />
+                                <PaymentDetails {...paymentDetailsMobileProps} />
+                            </div>
+                        ) : null}
+                    </div>
+                ) : (
+                    <div className="manual-order-body">
+                        <div className="manual-order-stage">
+                            {catalogBlock}
+                        </div>
+                        {sidebarSection}
                     </div>
                 )}
+
+                {mobileDock}
             </div>
         </div>
     );

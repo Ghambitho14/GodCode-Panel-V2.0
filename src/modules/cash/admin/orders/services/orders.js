@@ -12,7 +12,7 @@ import {
     normalizeDeliverySettings,
     isOrderPaymentAllowedForDelivery,
 } from '@/lib/delivery-settings';
-import { buildDeliveryAddressRecord, ORDERS_SELECT_WITH_COUPON, sanitizeOrder } from '@/shared/utils/orderUtils';
+import { buildDeliveryAddressRecord, ORDERS_SELECT_WITH_COUPON, sanitizeOrder, normalizePaymentBreakdown, isMixedPaymentBreakdown } from '@/shared/utils/orderUtils';
 import { buildGoogleMapsDirectionsUrl } from '@/lib/geo';
 import { printOrderTicket } from '@/modules/cash/admin/utils/receiptPrinting';
 
@@ -469,6 +469,16 @@ export const ordersService = {
                         maps_url: buildGoogleMapsDirectionsUrl(lat, lng),
                     };
                 }
+                if (orderData.payment_breakdown) {
+                    const breakdown = normalizePaymentBreakdown(orderData.payment_breakdown);
+                    const breakdownSum = breakdown.cash + breakdown.card + breakdown.online;
+                    if (
+                        isMixedPaymentBreakdown(breakdown) &&
+                        Math.abs(breakdownSum - Math.round(totalForRpc)) <= 1
+                    ) {
+                        postCreatePatch.payment_breakdown = breakdown;
+                    }
+                }
                 const { data: patchedRow, error: postCreateError } = await supabase
                     .from(TABLES.orders)
                     .update(postCreatePatch)
@@ -622,6 +632,21 @@ export const ordersService = {
             delivery_address: deliveryAddressRecord,
             delivery_fee: deliveryFee,
         };
+
+        if (Object.prototype.hasOwnProperty.call(patch, 'payment_breakdown')) {
+            const breakdown = patch.payment_breakdown
+                ? normalizePaymentBreakdown(patch.payment_breakdown)
+                : null;
+            if (
+                breakdown &&
+                isMixedPaymentBreakdown(breakdown) &&
+                Math.abs(breakdown.cash + breakdown.card + breakdown.online - Math.round(totalRounded)) <= 1
+            ) {
+                updatePayload.payment_breakdown = breakdown;
+            } else {
+                updatePayload.payment_breakdown = null;
+            }
+        }
 
         const { data: updated, error } = await supabase
             .from(TABLES.orders)

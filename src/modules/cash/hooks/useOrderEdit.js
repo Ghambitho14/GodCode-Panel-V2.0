@@ -14,7 +14,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { validateImageFile } from '@/shared/utils/cloudinary';
 import { formatRut, validateRut } from '@/shared/utils/formatters';
-import { flattenDeliveryAddress, isOrderDelivery, resolveOrderCouponCode } from '@/shared/utils/orderUtils';
+import { flattenDeliveryAddress, isOrderDelivery, resolveOrderCouponCode, isMixedPaymentBreakdown, normalizePaymentBreakdown, buildPaymentBreakdownForOrder } from '@/shared/utils/orderUtils';
 import { ordersService } from '../admin/orders/services/orders';
 import { supabase, TABLES } from '@/integrations/supabase';
 import { buildCouponPreview } from '@/lib/discount-coupon';
@@ -85,6 +85,9 @@ function buildInitialState(initialOrder) {
 		? 'delivery'
 		: normalizeOrderType(initialOrder.channel ?? 'pickup');
 	const flatAddr = flattenDeliveryAddress(initialOrder.delivery_address);
+	const storedBreakdown = isMixedPaymentBreakdown(initialOrder.payment_breakdown)
+		? normalizePaymentBreakdown(initialOrder.payment_breakdown)
+		: null;
 
 	return {
 		client_name: String(initialOrder.client_name ?? ''),
@@ -93,6 +96,10 @@ function buildInitialState(initialOrder) {
 		items,
 		total: computedTotal,
 		payment_type: String(initialOrder.payment_type ?? 'tienda'),
+		payment_mode: storedBreakdown ? 'mixed' : 'single',
+		cash_amount: storedBreakdown?.cash ?? 0,
+		card_amount: storedBreakdown?.card ?? 0,
+		cash_tendered: '',
 		order_type: orderType,
 		delivery_address: orderType === 'delivery' ? flatAddr.delivery_address : '',
 		delivery_reference: orderType === 'delivery' ? flatAddr.delivery_reference : '',
@@ -249,7 +256,14 @@ export const useOrderEdit = (
 	);
 
 	const updatePaymentType = (type) => {
-		setManualOrder((prev) => ({ ...prev, payment_type: type }));
+		setManualOrder((prev) => ({
+			...prev,
+			payment_type: type,
+			payment_mode: 'single',
+			cash_amount: 0,
+			card_amount: 0,
+			cash_tendered: '',
+		}));
 		if (type !== 'online') {
 			setReceiptFile(null);
 			setReceiptPreview((prev) => {
@@ -257,6 +271,36 @@ export const useOrderEdit = (
 				return null;
 			});
 		}
+	};
+
+	const updatePaymentMode = (mode) => {
+		setManualOrder((prev) => ({
+			...prev,
+			payment_mode: mode === 'mixed' ? 'mixed' : 'single',
+			cash_amount: mode === 'mixed' ? prev.cash_amount : 0,
+			card_amount: mode === 'mixed' ? prev.card_amount : 0,
+			cash_tendered: '',
+			...(mode === 'mixed' ? { payment_type: 'tienda' } : {}),
+		}));
+	};
+
+	const updateCashAmount = (val) => {
+		const parsed = val === '' || val == null ? 0 : Math.max(0, Math.round(Number(String(val).replace(/\D/g, '')) || 0));
+		setManualOrder((prev) => ({ ...prev, cash_amount: parsed, cash_tendered: '' }));
+	};
+
+	const updateCardAmount = (val) => {
+		const parsed = val === '' || val == null ? 0 : Math.max(0, Math.round(Number(String(val).replace(/\D/g, '')) || 0));
+		setManualOrder((prev) => ({ ...prev, card_amount: parsed }));
+	};
+
+	const updateCashTendered = (val) => {
+		if (val === '' || val == null) {
+			setManualOrder((prev) => ({ ...prev, cash_tendered: '' }));
+			return;
+		}
+		const parsed = Math.max(0, Math.round(Number(String(val).replace(/\D/g, '')) || 0));
+		setManualOrder((prev) => ({ ...prev, cash_tendered: parsed }));
 	};
 
 	const handleRutChange = (e) => {
@@ -525,6 +569,14 @@ export const useOrderEdit = (
 				is_extra: Boolean(item.is_extra),
 			}));
 
+			const deliveryFeeAmt =
+				manualOrder.order_type === 'delivery' ? (Number(manualOrder.delivery_fee) || 0) : 0;
+			const couponDisc =
+				couponPreview?.variant === 'success' && Number(couponPreview.discount) > 0
+					? Math.min(manualOrder.total, Number(couponPreview.discount))
+					: 0;
+			const checkoutTotal = Math.max(0, manualOrder.total - couponDisc + deliveryFeeAmt);
+
 			const sanitizedPatch = {
 				client_name: sanitizeInput(manualOrder.client_name),
 				client_phone: sanitizeInput(manualOrder.client_phone),
@@ -553,6 +605,13 @@ export const useOrderEdit = (
 						? Number(String(manualOrder.delivery_km).replace(',', '.'))
 						: null,
 				coupon_code: sanitizeInput(manualOrder.coupon_code) || '',
+				payment_breakdown: buildPaymentBreakdownForOrder({
+					payment_mode: manualOrder.payment_mode,
+					payment_type: manualOrder.payment_type,
+					cash_amount: manualOrder.cash_amount,
+					card_amount: manualOrder.card_amount,
+					total: checkoutTotal,
+				}),
 			};
 
 			const itemsChanged = JSON.stringify(itemsForOrder) !== initialItemsSnapshot;
@@ -601,6 +660,10 @@ export const useOrderEdit = (
 		couponPreview,
 		updateNote,
 		updatePaymentType,
+		updatePaymentMode,
+		updateCashAmount,
+		updateCardAmount,
+		updateCashTendered,
 		handleRutChange,
 		handlePhoneChange,
 		applyClientRecord,
