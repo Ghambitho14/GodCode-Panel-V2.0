@@ -46,6 +46,7 @@ const ClientForm = ({
     getInputStyle,
     branch,
     showNotify,
+    canOverrideDeliveryFee = false,
 }) => {
     const [detectingZone, setDetectingZone] = useState(false);
     const [calculatingDistance, setCalculatingDistance] = useState(false);
@@ -309,13 +310,19 @@ const ClientForm = ({
                 <input
                     type="number"
                     placeholder={
-                        showNamedZonePicker || showDistancePricing
-                            ? 'COSTO ENVÍO (calculado; puedes ajustar)'
-                            : 'COSTO DE ENVÍO (OPCIONAL)'
+                        canOverrideDeliveryFee
+                            ? (showNamedZonePicker || showDistancePricing
+                                ? 'COSTO ENVÍO (calculado; puedes ajustar)'
+                                : 'COSTO DE ENVÍO (OPCIONAL)')
+                            : (showNamedZonePicker || showDistancePricing
+                                ? 'COSTO ENVÍO (calculado automáticamente)'
+                                : 'COSTO DE ENVÍO')
                     }
                     className="manual-order-input"
                     value={manualOrder.delivery_fee || ''}
                     onChange={(e) => updateDeliveryFee(e.target.value)}
+                    readOnly={!canOverrideDeliveryFee}
+                    aria-readonly={!canOverrideDeliveryFee}
                 />
             </div>
         </div>

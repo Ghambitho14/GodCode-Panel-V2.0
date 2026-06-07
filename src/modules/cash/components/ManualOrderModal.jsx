@@ -8,6 +8,8 @@ import { branchSettingsService } from '../services/branchSettingsService';
 import { normalizeDeliverySettings } from '@/lib/delivery-settings';
 import { buildDeliveryAddressRecord, validateCheckoutPayment } from '@/shared/utils/orderUtils';
 import { printOrderTicket } from '@/modules/cash/admin/utils/receiptPrinting';
+import { useAdmin } from '@/modules/cash/admin/pages/AdminProvider';
+import { canOverrideDeliveryFee } from '../utils/deliveryFeePermissions';
 
 // Subcomponentes presentacionales
 import ManualOrderCatalog from './manual-order/ManualOrderCatalog';
@@ -69,7 +71,10 @@ const ManualOrderModal = ({
     branch,
     logoUrl,
     companyName,
+    resyncOrderSale = null,
 }) => {
+    const { userRole } = useAdmin();
+    const canEditDeliveryFee = canOverrideDeliveryFee(userRole);
     const isEditMode = Boolean(editOrder?.id);
     // --- ESTADOS LOCALES DE CONFIGURACIÓN Y CATÁLOGO DE UPSELL ---
     const [branchDeliveryCfg, setBranchDeliveryCfg] = useState(null);
@@ -86,6 +91,7 @@ const ManualOrderModal = ({
         onClose,
         branch,
         branchDeliveryCfg,
+        userRole,
     );
 
     const editHook = useOrderEdit(
@@ -95,6 +101,8 @@ const ManualOrderModal = ({
         branch,
         branchDeliveryCfg,
         isEditMode ? editOrder : null,
+        resyncOrderSale,
+        userRole,
     );
 
     const {
@@ -492,6 +500,7 @@ const ManualOrderModal = ({
             getInputStyle={getInputStyle}
             branch={branch}
             showNotify={showNotify}
+            canOverrideDeliveryFee={canEditDeliveryFee}
         />
     );
 

@@ -757,8 +757,18 @@ export const AdminProvider = ({
 				.eq('id', orderId)
 				.eq('company_id', companyId);
 			if (error) throw error;
+
+			const orderSelect =
+				'id, total, payment_type, payment_breakdown, payment_method_specific, client_name, branch_id, status';
+			const { data: freshOrder } = await supabase
+				.from(TABLES.orders)
+				.select(orderSelect)
+				.eq('id', orderId)
+				.eq('company_id', companyId)
+				.maybeSingle();
+			const targetOrder = freshOrder ?? previousRow;
+
 			if (nextStatus === 'active') {
-				const targetOrder = previousRow;
 				if (targetOrder) {
 					const ok = await cashSystem.registerSale(targetOrder);
 					if (!ok) {
@@ -767,7 +777,6 @@ export const AdminProvider = ({
 				}
 			}
 			if (nextStatus === 'cancelled') {
-				const targetOrder = previousRow;
 				if (targetOrder) {
 					const ok = await cashSystem.registerRefund(targetOrder);
 					if (!ok) {

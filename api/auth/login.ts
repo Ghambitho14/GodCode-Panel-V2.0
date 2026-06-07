@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createServerSupabaseClient } from "../_lib/supabase.js";
-import { jsonSession, methodGuard, setRefreshCookie } from "../_lib/http.js";
+import { checkLoginRateLimit } from "../_lib/rate-limit.js";
+import { jsonSession, methodGuard, passesCsrfCheck, setRefreshCookie } from "../_lib/http.js";
 
 /**
  * POST /api/auth/login  { email, password }
@@ -12,12 +13,24 @@ import { jsonSession, methodGuard, setRefreshCookie } from "../_lib/http.js";
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!methodGuard(req, res, "POST")) return;
 
+  if (!passesCsrfCheck(req)) {
+    res.status(403).json({ error: "Petición no autorizada." });
+    return;
+  }
+
   const body = typeof req.body === "string" ? safeParse(req.body) : req.body;
   const email = String(body?.email ?? "").trim();
   const password = String(body?.password ?? "");
 
   if (!email || !password) {
     res.status(400).json({ error: "Email y contraseña son obligatorios." });
+    return;
+  }
+
+  const rateLimit = await checkLoginRateLimit(req, email);
+  if (!rateLimit.allowed) {
+    res.setHeader("Retry-After", String(rateLimit.retryAfterSeconds));
+    res.status(429).json({ error: "Demasiados intentos. Intenta más tarde." });
     return;
   }
 
@@ -36,8 +49,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       expires_at: data.session.expires_at ?? null,
       user: data.user,
     });
-  } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : "Error de servidor." });
+  } catch {
+    res.status(500).json({ error: "Error de servidor." });
   }
 }
 

@@ -7,12 +7,13 @@ import { createManualOrder } from '../admin/orders/services/orders';
 import { validateRut } from '@/shared/utils/formatters';
 import { buildPaymentBreakdownForOrder } from '@/shared/utils/orderUtils';
 import { effectiveDeliveryPricingMode } from '@/lib/delivery-settings';
+import { canOverrideDeliveryFee } from '../utils/deliveryFeePermissions';
 
 /**
  * Hook orquestador principal del pedido manual.
  * Delega lógicas específicas a sub-hooks especializados y expone una API unificada compatible.
  */
-export const useManualOrder = (showNotify, onOrderSaved, onClose, branch, branchDeliveryCfg = null) => {
+export const useManualOrder = (showNotify, onOrderSaved, onClose, branch, branchDeliveryCfg = null, userRole = null) => {
     
     // 1. Sub-hook para el Carrito
     const {
@@ -186,7 +187,10 @@ export const useManualOrder = (showNotify, onOrderSaved, onClose, branch, branch
                     form.order_type === 'delivery'
                         ? String(form.delivery_named_area_id ?? '').trim() || null
                         : null,
-                manual_delivery_fee: form.order_type === 'delivery' ? form.delivery_fee : 0,
+                caller_role: userRole,
+                ...(canOverrideDeliveryFee(userRole) && form.order_type === 'delivery'
+                    ? { manual_delivery_fee: Number(form.delivery_fee) || 0 }
+                    : {}),
                 coupon_code: sanitizeInput(form.coupon_code) || '',
             };
 

@@ -18,6 +18,7 @@ import { flattenDeliveryAddress, isOrderDelivery, resolveOrderCouponCode, isMixe
 import { ordersService } from '../admin/orders/services/orders';
 import { supabase, TABLES } from '@/integrations/supabase';
 import { buildCouponPreview } from '@/lib/discount-coupon';
+import { canOverrideDeliveryFee } from '../utils/deliveryFeePermissions';
 
 const PREVIEW_ERR_MSG = {
 	empty: '',
@@ -118,6 +119,8 @@ export const useOrderEdit = (
 	branch,
 	branchDeliveryCfg,
 	initialOrder,
+	resyncOrderSale = null,
+	userRole = null,
 ) => {
 	const initialState = useMemo(
 		() => buildInitialState(initialOrder),
@@ -626,9 +629,30 @@ export const useOrderEdit = (
 				branchName: branch.name,
 				logoUrl: null,
 				showNotify,
+				callerRole: userRole,
 			});
 
-			showNotify?.('Pedido actualizado.', 'success');
+			const status = String(updated?.status ?? '').toLowerCase();
+			let cashSynced = false;
+			if (
+				['active', 'completed', 'picked_up'].includes(status) &&
+				typeof resyncOrderSale === 'function'
+			) {
+				const { ok, appliedCount } = await resyncOrderSale(updated);
+				if (!ok) {
+					showNotify?.(
+						'Pedido guardado, pero no se pudo ajustar la caja. Revisa manualmente.',
+						'warning',
+					);
+				} else if (appliedCount > 0) {
+					showNotify?.('Pedido y caja actualizados.', 'success');
+					cashSynced = true;
+				}
+			}
+
+			if (!cashSynced) {
+				showNotify?.('Pedido actualizado.', 'success');
+			}
 			if (onSaved) onSaved(updated);
 			if (onClose) onClose();
 		} catch (error) {

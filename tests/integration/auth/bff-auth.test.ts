@@ -15,9 +15,18 @@ describe("BFF auth handlers", () => {
 		vi.mocked(createServerSupabaseClient).mockReset();
 	});
 
+	const csrfHeaders = {
+		"x-gc-auth": "1",
+		origin: "http://localhost:5173",
+		host: "localhost:5173",
+	};
+
 	it("login returns 400 without credentials", async () => {
 		const res = mockResponse();
-		await loginHandler(mockRequest({ method: "POST", body: {} }), res);
+		await loginHandler(
+			mockRequest({ method: "POST", headers: csrfHeaders, body: {} }),
+			res,
+		);
 		expect(res._status).toBe(400);
 	});
 
@@ -42,6 +51,7 @@ describe("BFF auth handlers", () => {
 		await loginHandler(
 			mockRequest({
 				method: "POST",
+				headers: csrfHeaders,
 				body: { email: "a@b.com", password: "secret" },
 			}),
 			res,

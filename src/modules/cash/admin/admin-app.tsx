@@ -8,7 +8,6 @@ import "../styles/AdminContextualHelp.css";
 import { AdminPage } from "./pages/Admin";
 import { AdminProvider } from "./pages/AdminProvider";
 import { LocationProvider } from "../context/LocationContext";
-import { CashProvider } from "../context/CashContext";
 import { BusinessProvider } from "../context/BusinessContext";
 import { applyDocumentFavicon } from "@/shared/utils/documentFavicon";
 
@@ -178,26 +177,24 @@ export function AdminApp({
 			<style>{buildTenantThemeCss({ theme_config: resolvedThemeConfig })}</style>
 			<div className="tenant-theme-vars">
 				<LocationProvider companyId={resolvedCompanyId}>
-					<CashProvider>
-						<BusinessProvider>
-							<AdminProvider
-								companyId={resolvedCompanyId}
-								initialUserRole={initialUserRole}
-								panelAccess={panelAccess}
-								dynamicModules={dynamicModules}
-								resolvedTabLabels={resolvedTabLabels}
-								adminShortcutsEnabled={adminShortcutsEnabled}
-							>
-								<AdminPage
-									companyName={resolvedCompanyName}
-									logoUrl={effectiveLogoUrl}
-									userEmail={resolvedUserEmail ?? userEmailProp}
-									primaryColor={primaryColor}
-									storefrontMenuUrl={storefrontMenuUrl}
-								/>
-							</AdminProvider>
-						</BusinessProvider>
-					</CashProvider>
+					<BusinessProvider>
+						<AdminProvider
+							companyId={resolvedCompanyId}
+							initialUserRole={initialUserRole}
+							panelAccess={panelAccess}
+							dynamicModules={dynamicModules}
+							resolvedTabLabels={resolvedTabLabels}
+							adminShortcutsEnabled={adminShortcutsEnabled}
+						>
+							<AdminPage
+								companyName={resolvedCompanyName}
+								logoUrl={effectiveLogoUrl}
+								userEmail={resolvedUserEmail ?? userEmailProp}
+								primaryColor={primaryColor}
+								storefrontMenuUrl={storefrontMenuUrl}
+							/>
+						</AdminProvider>
+					</BusinessProvider>
 				</LocationProvider>
 			</div>
 		</>

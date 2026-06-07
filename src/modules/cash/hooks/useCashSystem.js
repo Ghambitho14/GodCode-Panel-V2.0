@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase, TABLES } from '@/integrations/supabase';
 import { isValidBranchId } from '@/shared/utils/safeIds';
 import { cashService } from '../services/cashService';
@@ -7,13 +7,78 @@ import {
 } from '../utils/cashMovementKinds';
 import { computeShiftTotals } from '../utils/cashTotals';
 import { getExpectedByMethod } from '../utils/shiftCloseReconciliation';
-import { planSaleMovements, planRefundMovements } from '../utils/orderPaymentMovements';
+import { planSaleMovements, planRefundMovements, planSaleResyncMovements } from '../utils/orderPaymentMovements';
 
 export const useCashSystem = (showNotify, branchId) => {
     const [activeShift, setActiveShift] = useState(null);
     const [loading, setLoading] = useState(true);
     const [movements, setMovements] = useState([]);
     const [loadingMovements, setLoadingMovements] = useState(false);
+    /** IDs de movimientos insertados localmente; el realtime los ignora para evitar refetch duplicado. */
+    const pendingLocalMovementIdsRef = useRef(new Set());
+
+    const markLocalMovements = useCallback((rows) => {
+        const list = Array.isArray(rows) ? rows : [rows];
+        for (const row of list) {
+            if (row?.id != null) pendingLocalMovementIdsRef.current.add(String(row.id));
+        }
+    }, []);
+
+    const consumeLocalRealtimeInsert = useCallback((id) => {
+        if (id == null) return false;
+        const key = String(id);
+        if (!pendingLocalMovementIdsRef.current.has(key)) return false;
+        pendingLocalMovementIdsRef.current.delete(key);
+        return true;
+    }, []);
+
+    const prependMovement = useCallback((row) => {
+        if (!row?.id) return;
+        setMovements((prev) => {
+            if (prev.some((m) => m.id === row.id)) return prev;
+            return [row, ...prev];
+        });
+    }, []);
+
+    /**
+     * Actualiza solo metadatos del turno abierto (p. ej. expected_balance) sin recargar movimientos.
+     */
+    const refreshShiftMeta = useCallback(async (shiftId) => {
+        const sid = shiftId ?? activeShift?.id;
+        if (!sid) return null;
+        try {
+            const { data, error } = await supabase
+                .from(TABLES.cash_shifts)
+                .select('*')
+                .eq('id', sid)
+                .eq('status', 'open')
+                .maybeSingle();
+            if (error) throw error;
+            if (data) {
+                setActiveShift((prev) => {
+                    if (!prev || prev.id !== data.id) return data;
+                    if (Number(prev.expected_balance) === Number(data.expected_balance)) {
+                        return prev;
+                    }
+                    return { ...prev, ...data };
+                });
+            }
+            return data;
+        } catch {
+            return null;
+        }
+    }, [activeShift?.id]);
+
+    const applyLocalMovementInserts = useCallback(async (shiftId, rows) => {
+        const created = (Array.isArray(rows) ? rows : [rows]).filter((r) => r?.id);
+        if (created.length === 0) {
+            await refreshShiftMeta(shiftId);
+            return;
+        }
+        markLocalMovements(created);
+        await refreshShiftMeta(shiftId);
+        for (const row of created) prependMovement(row);
+    }, [markLocalMovements, prependMovement, refreshShiftMeta]);
 
     /**
      * Carga los movimientos de un turno específico
@@ -83,21 +148,25 @@ export const useCashSystem = (showNotify, branchId) => {
     useEffect(() => {
         if (!activeShift) return;
 
+        const shiftId = activeShift.id;
+
         // Subscribe a cambios en cash_movements para este shift
         const channel = supabase
-            .channel(`cash_movements:shift_id=eq.${activeShift.id}`)
+            .channel(`cash_movements:shift_id=eq.${shiftId}`)
             .on(
                 'postgres_changes',
                 {
                     event: '*', // Escuchar INSERT, UPDATE, DELETE
                     schema: 'public',
                     table: TABLES.cash_movements,
-                    filter: `shift_id=eq.${activeShift.id}`
+                    filter: `shift_id=eq.${shiftId}`
                 },
                 (payload) => {
                     if (payload.eventType === 'INSERT') {
-                        // Re-fetchear para tener el mismo shape (con join orders) que loadMovements
-                        loadMovements(activeShift.id);
+                        const newRow = payload.new;
+                        if (newRow && consumeLocalRealtimeInsert(newRow.id)) return;
+                        void refreshShiftMeta(shiftId);
+                        if (newRow) prependMovement(newRow);
                     } else if (payload.eventType === 'DELETE') {
                         // Remover si se borra
                         setMovements(prev => prev.filter(m => m.id !== payload.old.id));
@@ -112,7 +181,7 @@ export const useCashSystem = (showNotify, branchId) => {
         return () => {
             channel.unsubscribe();
         };
-    }, [activeShift, loadMovements]);
+    }, [activeShift, consumeLocalRealtimeInsert, prependMovement, refreshShiftMeta]);
 
     /**
      * Abre un nuevo turno
@@ -240,10 +309,10 @@ export const useCashSystem = (showNotify, branchId) => {
                 rpcPayload.p_expense_kind = expenseKind;
             }
 
-            const { error } = await supabase.rpc('cash_add_movement', rpcPayload);
+            const { data, error } = await supabase.rpc('cash_add_movement', rpcPayload);
             if (error) throw error;
-            
-            await loadActiveShift();
+
+            await applyLocalMovementInserts(activeShift.id, data);
             if (showNotify) {
                 const custom = opts && typeof opts.successMessage === 'string' && opts.successMessage.trim() !== '';
                 showNotify(
@@ -265,7 +334,7 @@ export const useCashSystem = (showNotify, branchId) => {
             }
             return false;
         }
-    }, [activeShift, showNotify, loadActiveShift]);
+    }, [activeShift, showNotify, applyLocalMovementInserts]);
 
     /**
      * Registra una venta automáticamente
@@ -290,8 +359,9 @@ export const useCashSystem = (showNotify, branchId) => {
             const planned = planSaleMovements(order, movements || []);
             if (planned.length === 0) return true;
 
+            const createdRows = [];
             for (const movement of planned) {
-                const { error } = await supabase.rpc('cash_add_movement', {
+                const { data, error } = await supabase.rpc('cash_add_movement', {
                     p_shift_id: targetShift.id,
                     p_type: movement.type,
                     p_amount: movement.amount,
@@ -300,17 +370,18 @@ export const useCashSystem = (showNotify, branchId) => {
                     p_order_id: order.id,
                 });
                 if (error) throw error;
+                if (data) createdRows.push(data);
             }
 
             if (activeShift && activeShift.id === targetShift.id) {
-                await loadActiveShift();
+                await applyLocalMovementInserts(targetShift.id, createdRows);
             }
             return true;
         } catch {
             if (showNotify) showNotify('Error registrando venta en caja', 'error');
             return false;
         }
-    }, [activeShift, loadActiveShift, getTargetShift, showNotify]);
+    }, [activeShift, applyLocalMovementInserts, getTargetShift, showNotify]);
 
     /**
      * Registra una devolución
@@ -332,8 +403,9 @@ export const useCashSystem = (showNotify, branchId) => {
             const planned = planRefundMovements(order, movements || []);
             if (planned.length === 0) return true;
 
+            const createdRows = [];
             for (const movement of planned) {
-                const { error } = await supabase.rpc('cash_add_movement', {
+                const { data, error } = await supabase.rpc('cash_add_movement', {
                     p_shift_id: targetShift.id,
                     p_type: movement.type,
                     p_amount: movement.amount,
@@ -342,10 +414,11 @@ export const useCashSystem = (showNotify, branchId) => {
                     p_order_id: order.id,
                 });
                 if (error) throw error;
+                if (data) createdRows.push(data);
             }
 
             if (activeShift && activeShift.id === targetShift.id) {
-                await loadActiveShift();
+                await applyLocalMovementInserts(targetShift.id, createdRows);
             }
             if (showNotify) showNotify('Devolución registrada en caja', 'success');
             return true;
@@ -353,7 +426,65 @@ export const useCashSystem = (showNotify, branchId) => {
             if (showNotify) showNotify('Error registrando devolución', 'error');
             return false;
         }
-    }, [activeShift, showNotify, loadActiveShift, getTargetShift]);
+    }, [activeShift, showNotify, applyLocalMovementInserts, getTargetShift]);
+
+    /**
+     * Re-sincroniza movimientos de venta cuando el pedido editado difiere de lo registrado en caja.
+     * @returns {Promise<{ ok: boolean; appliedCount: number }>}
+     */
+    const resyncOrderSale = useCallback(async (order) => {
+        try {
+            const { data: movements, error: movErr } = await supabase
+                .from(TABLES.cash_movements)
+                .select('shift_id, type, amount, payment_method')
+                .eq('order_id', order.id);
+
+            if (movErr) throw movErr;
+
+            const existingMovements = movements || [];
+            const shiftIdFromMovements = existingMovements.find((m) => m?.shift_id)?.shift_id ?? null;
+
+            let targetShiftId = shiftIdFromMovements;
+            if (!targetShiftId) {
+                const targetShift = await getTargetShift(order.branch_id);
+                targetShiftId = targetShift?.id ?? null;
+            }
+
+            if (!targetShiftId) {
+                if (showNotify) showNotify('No hay caja abierta para ajustar este pedido', 'error');
+                return { ok: false, appliedCount: 0 };
+            }
+
+            const shiftMovements = existingMovements.filter((m) => m.shift_id === targetShiftId);
+            const planned = planSaleResyncMovements(order, shiftMovements);
+            if (planned.length === 0) return { ok: true, appliedCount: 0 };
+
+            const orderLabel = String(order.id).slice(-4);
+            const clientName = order.client_name ?? '';
+
+            const createdRows = [];
+            for (const movement of planned) {
+                const { data, error } = await supabase.rpc('cash_add_movement', {
+                    p_shift_id: targetShiftId,
+                    p_type: movement.type,
+                    p_amount: movement.amount,
+                    p_description: `Ajuste venta #${orderLabel} - ${clientName}`,
+                    p_payment_method: movement.payment_method,
+                    p_order_id: order.id,
+                });
+                if (error) throw error;
+                if (data) createdRows.push(data);
+            }
+
+            if (activeShift && activeShift.id === targetShiftId) {
+                await applyLocalMovementInserts(targetShiftId, createdRows);
+            }
+            return { ok: true, appliedCount: planned.length };
+        } catch {
+            if (showNotify) showNotify('Error ajustando venta en caja', 'error');
+            return { ok: false, appliedCount: 0 };
+        }
+    }, [activeShift, applyLocalMovementInserts, getTargetShift, showNotify]);
 
     const getPastShifts = useCallback(async (limit = 20) => {
         if (!branchId || !isValidBranchId(branchId)) return [];
@@ -406,13 +537,14 @@ export const useCashSystem = (showNotify, branchId) => {
         addManualMovement,
         registerSale,
         registerRefund,
+        resyncOrderSale,
         refresh: loadActiveShift,
         getPastShifts,
         getShiftMovements,
         getTotals
     }), [
         activeShift, loading, movements, loadingMovements,
-        openShift, closeShift, addManualMovement, registerSale, registerRefund,
+        openShift, closeShift, addManualMovement, registerSale, registerRefund, resyncOrderSale,
         loadActiveShift, getPastShifts, getShiftMovements, getTotals
     ]);
 };

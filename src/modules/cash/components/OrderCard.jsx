@@ -18,6 +18,7 @@ import { printOrderTicket } from '@/modules/cash/admin/utils/receiptPrinting';
 import ManualOrderModal from './ManualOrderModal';
 import OrderEditMenu from './manual-order/OrderEditMenu';
 import OrderCardAnchoredMenu from './OrderCardAnchoredMenu';
+import { useAdmin } from '@/modules/cash/admin/pages/AdminProvider';
 
 function buildItemsSummary(items) {
     const list = Array.isArray(items) ? items : [];
@@ -39,6 +40,7 @@ const OrderCard = ({
     logoUrl, companyName, showNotify, products, categories, onOrderSaved,
     gridTile = false,
 }) => {
+    const { cashSystem } = useAdmin();
     const [editMenuOpen, setEditMenuOpen] = useState(false);
     const [editWizardOpen, setEditWizardOpen] = useState(false);
     const [editInitialStep, setEditInitialStep] = useState(1);
@@ -434,6 +436,7 @@ const OrderCard = ({
                         onOrderSaved?.(saved);
                         setEditWizardOpen(false);
                     }}
+                    resyncOrderSale={cashSystem?.resyncOrderSale ?? null}
                 />
             ) : null}
         </div>

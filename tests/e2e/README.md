@@ -14,6 +14,8 @@ These specs are skipped unless credentials are set:
 |----------|-------------|
 | `E2E_EMAIL` | Staging/test user email |
 | `E2E_PASSWORD` | Password for that user |
+| `E2E_TENANT_B_EMAIL` | Second tenant user (RLS cross-tenant test) |
+| `E2E_TENANT_B_PASSWORD` | Password for tenant B |
 
 Example:
 

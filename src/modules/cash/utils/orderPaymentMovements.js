@@ -40,6 +40,20 @@ function sumRefundsByMethod(movements) {
 	return totals;
 }
 
+function netByMethod(movements) {
+	const sales = sumSalesByMethod(movements);
+	const refunds = sumRefundsByMethod(movements);
+	return {
+		cash: sales.cash - refunds.cash,
+		card: sales.card - refunds.card,
+		online: sales.online - refunds.online,
+	};
+}
+
+function totalBreakdown(breakdown) {
+	return breakdown.cash + breakdown.card + breakdown.online;
+}
+
 function hasRegisteredSale(movements, paymentMethod, expectedAmount) {
 	const sales = (movements || []).filter(
 		(m) => m?.type === 'sale' && m.payment_method === paymentMethod,
@@ -94,6 +108,33 @@ export function planSaleMovements(order, existingMovements = []) {
  * @param {Array<{ type?: string; amount?: number; payment_method?: string | null }>} existingMovements
  * @returns {Array<{ type: 'expense'; amount: number; payment_method: 'cash' | 'card' | 'online' }>}
  */
+/**
+ * Ajustes delta para alinear caja con el pedido editado (método de pago o total).
+ * Compara desglose deseado vs neto registrado por método (sale − expense).
+ * @param {Record<string, unknown>} order
+ * @param {Array<{ type?: string; amount?: number; payment_method?: string | null }>} existingMovements
+ * @returns {Array<{ type: 'sale' | 'expense'; amount: number; payment_method: 'cash' | 'card' | 'online' }>}
+ */
+export function planSaleResyncMovements(order, existingMovements = []) {
+	const desired = getOrderPaymentBreakdown(order);
+	const current = netByMethod(existingMovements);
+
+	if (totalBreakdown(current) === 0 && totalBreakdown(desired) > 0) {
+		return planSaleMovements(order, existingMovements);
+	}
+
+	const movements = [];
+	for (const method of METHODS) {
+		const delta = desired[method] - current[method];
+		if (delta > AMOUNT_TOLERANCE) {
+			movements.push({ type: 'sale', amount: delta, payment_method: method });
+		} else if (delta < -AMOUNT_TOLERANCE) {
+			movements.push({ type: 'expense', amount: -delta, payment_method: method });
+		}
+	}
+	return movements.filter((movement) => movement.amount > 0);
+}
+
 export function planRefundMovements(_order, existingMovements = []) {
 	const salesByMethod = sumSalesByMethod(existingMovements);
 	const refundsByMethod = sumRefundsByMethod(existingMovements);

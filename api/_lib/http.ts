@@ -54,7 +54,8 @@ export function readRefreshCookie(req: VercelRequest): string | null {
 export function passesCsrfCheck(req: VercelRequest): boolean {
   if (req.headers["x-gc-auth"] !== "1") return false;
   const origin = req.headers.origin;
-  if (!origin) return true; // same-origin sin Origin (algunos navegadores en POST same-site)
+  // M2: POST cross-site siempre envía Origin; sin Origin rechazamos (excepto GET implícito).
+  if (!origin) return false;
   try {
     const originHost = new URL(String(origin)).host;
     const host = String(req.headers.host ?? "");

@@ -78,10 +78,10 @@ describe("api/_lib/http", () => {
 		).toBe(false);
 	});
 
-	it("passesCsrfCheck allows missing origin (same-site)", () => {
+	it("passesCsrfCheck rejects missing origin on POST (M2)", () => {
 		expect(
 			passesCsrfCheck(mockRequest({ headers: { "x-gc-auth": "1", host: "x" } })),
-		).toBe(true);
+		).toBe(false);
 	});
 
 	it("methodGuard blocks wrong method", () => {

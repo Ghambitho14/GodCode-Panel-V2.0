@@ -63,6 +63,21 @@ export function paymentTypeToBreakdownMethod(paymentType) {
 }
 
 /**
+ * Infiere bucket de caja (cash | card | online) desde payment_type y payment_method_specific.
+ * Alineado con getCashMovementPaymentMethod para pedidos del menú digital.
+ * @param {Record<string, unknown> | null | undefined} order
+ * @returns {'cash' | 'card' | 'online'}
+ */
+export function inferBreakdownMethodFromOrder(order) {
+	if (!order) return 'cash';
+	const specific = String(order.payment_method_specific ?? '').trim().toLowerCase();
+	if (specific === 'efectivo') return 'cash';
+	if (specific === 'tarjeta' || specific === 'stripe') return 'card';
+	if (specific && ONLINE_SPECIFIC_METHODS.has(specific)) return 'online';
+	return paymentTypeToBreakdownMethod(String(order.payment_type ?? ''));
+}
+
+/**
  * Desglose efectivo para caja: usa payment_breakdown si es mixto; si no, infiere del total.
  * @param {Record<string, unknown> | null | undefined} order
  * @returns {PaymentBreakdown}
@@ -76,7 +91,7 @@ export function getOrderPaymentBreakdown(order) {
 	}
 
 	const total = Math.round(Number(order.total) || 0);
-	const method = paymentTypeToBreakdownMethod(String(order.payment_type ?? ''));
+	const method = inferBreakdownMethodFromOrder(order);
 	return {
 		cash: method === 'cash' ? total : 0,
 		card: method === 'card' ? total : 0,
