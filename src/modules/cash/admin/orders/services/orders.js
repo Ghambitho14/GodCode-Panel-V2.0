@@ -8,6 +8,7 @@ import {
 import {
     computeDeliveryFee,
     effectiveDeliveryPricingMode,
+    extractCartUpsellSettings,
     normalizeDeliverySettings,
     isOrderPaymentAllowedForDelivery,
 } from '@/lib/delivery-settings';
@@ -47,10 +48,11 @@ function isCatalogUpsellItem(item) {
 
 function buildUpsellCatalogMap(deliverySettings) {
     const map = new Map();
-    const settings = normalizeDeliverySettings(deliverySettings);
+    const { cartBeveragesCatalog, cartGlobalExtrasCatalog } =
+        extractCartUpsellSettings(deliverySettings);
     for (const row of [
-        ...(settings.cartGlobalExtrasCatalog || []),
-        ...(settings.cartBeveragesCatalog || []),
+        ...(cartGlobalExtrasCatalog || []),
+        ...(cartBeveragesCatalog || []),
     ]) {
         if (!row?.id || row.active === false) continue;
         map.set(String(row.id), row);

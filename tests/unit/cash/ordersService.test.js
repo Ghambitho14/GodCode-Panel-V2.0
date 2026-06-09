@@ -227,6 +227,93 @@ describe('ordersService security refactor', () => {
 		).rejects.toThrow('No tienes permiso para modificar el costo de envío.');
 	});
 
+	it('createOrder accepts upsell beverages from branch cart catalog', async () => {
+		setupCreateOrderMocks({
+			cartBeveragesCatalog: [
+				{ id: 'bebida-test', name: 'Agua mineral', price: 1000, active: true },
+			],
+		});
+		rpcMock.mockResolvedValueOnce({
+			data: { id: 102, total: 8500 },
+			error: null,
+		});
+
+		await ordersService.createOrder({
+			branch_id: BRANCH_ID,
+			company_id: 'company-1',
+			client_name: 'Ana',
+			client_phone: '+56911111111',
+			client_rut: '11.111.111-1',
+			payment_type: 'tienda',
+			order_type: 'pickup',
+			items: [
+				{ id: PRODUCT_ID, name: 'Pizza', price: 7500, quantity: 1 },
+				{
+					id: 'bebida-test',
+					name: 'Agua mineral',
+					price: 1000,
+					quantity: 1,
+					manual_order_source: 'beverages',
+				},
+			],
+		});
+
+		expect(rpcMock).toHaveBeenCalledWith(
+			'create_order_transaction',
+			expect.objectContaining({
+				p_items: expect.arrayContaining([
+					expect.objectContaining({
+						id: PRODUCT_ID,
+						name: 'Pizza',
+						quantity: 1,
+					}),
+					expect.objectContaining({
+						id: 'bebida-test',
+						name: 'Agua mineral',
+						price: 1000,
+						quantity: 1,
+						manual_order_source: 'beverages',
+						is_extra: false,
+					}),
+				]),
+			}),
+		);
+	});
+
+	it('createOrder rejects upsell beverages missing from branch cart catalog', async () => {
+		setupCreateOrderMocks({
+			cartBeveragesCatalog: [
+				{ id: 'bebida-test', name: 'Agua mineral', price: 1000, active: true },
+			],
+		});
+
+		await expect(
+			ordersService.createOrder({
+				branch_id: BRANCH_ID,
+				company_id: 'company-1',
+				client_name: 'Ana',
+				client_phone: '+56911111111',
+				client_rut: '11.111.111-1',
+				payment_type: 'tienda',
+				order_type: 'pickup',
+				items: [
+					{ id: PRODUCT_ID, name: 'Pizza', price: 7500, quantity: 1 },
+					{
+						id: 'bebida-desconocida',
+						name: 'Bebida fantasma',
+						price: 500,
+						quantity: 1,
+						manual_order_source: 'beverages',
+					},
+				],
+			}),
+		).rejects.toThrow(
+			'Hay productos del carrito que no están disponibles para esta sucursal. Actualiza el menú e intenta nuevamente.',
+		);
+
+		expect(rpcMock).not.toHaveBeenCalled();
+	});
+
 	it('maps invalid_item_price RPC error to UX message on update', async () => {
 		rpcMock.mockResolvedValueOnce({
 			data: null,
