@@ -108,6 +108,16 @@ function throwOrderRpcError(error) {
     ) {
         throw new Error('No tienes permisos para editar este pedido.');
     }
+    if (
+        rpcMessage.includes('duplicate_client_phone')
+        || rpcMessage.includes('clients_phone_key')
+        || (String(error?.code) === '23505' && rpcMessage.includes('phone'))
+    ) {
+        throw new Error('Ya existe un cliente con este teléfono. Selecciónalo del listado o elige otro número.');
+    }
+    if (rpcMessage.includes('client_not_found_or_not_allowed')) {
+        throw new Error('El cliente seleccionado no es válido para esta empresa. Vuelve a elegirlo del listado.');
+    }
     throw error;
 }
 
@@ -487,6 +497,9 @@ export const ordersService = {
             const clientPhone = normalizeManualPhone(
                 String(orderData.client_phone ?? '').trim(),
             );
+            const selectedClientId = String(
+                orderData.selected_client_id ?? orderData.client_id ?? '',
+            ).trim() || null;
 
             // 3. EJECUTAR TRANSACCIÓN ATÓMICA (RPC)
             // Inventario: confirmar en Supabase que esta RPC descuenta product_inventory_recipe.qty_per_sale
@@ -509,6 +522,7 @@ export const ordersService = {
                 p_delivery_fee: deliveryMode ? deliveryFee : 0,
                 p_coupon_code: pCouponCode,
                 p_payment_breakdown: resolvePaymentBreakdownForRpc(orderData.payment_breakdown, totalForRpc),
+                p_client_id: selectedClientId,
             });
 
             if (orderError) {

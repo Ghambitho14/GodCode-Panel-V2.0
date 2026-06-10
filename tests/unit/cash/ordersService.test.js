@@ -141,12 +141,39 @@ describe('ordersService security refactor', () => {
 				p_client_phone: '+56 9 1111 1111',
 				p_items: expect.any(Array),
 				p_payment_breakdown: null,
+				p_client_id: null,
 			}),
 		);
 
 		for (const result of fromMock.mock.results) {
 			expect(result?.value?.update).not.toHaveBeenCalled();
 		}
+	});
+
+	it('createOrder passes selected_client_id to RPC when provided', async () => {
+		setupCreateOrderMocks();
+		rpcMock.mockResolvedValueOnce({
+			data: { id: 102, total: 7500 },
+			error: null,
+		});
+
+		await ordersService.createOrder({
+			branch_id: BRANCH_ID,
+			company_id: 'company-1',
+			client_name: 'Ana',
+			client_phone: '+56911111111',
+			selected_client_id: 'client-uuid-1',
+			payment_type: 'tienda',
+			order_type: 'pickup',
+			items: [{ id: PRODUCT_ID, name: 'Pizza', price: 7500, quantity: 1 }],
+		});
+
+		expect(rpcMock).toHaveBeenCalledWith(
+			'create_order_transaction',
+			expect.objectContaining({
+				p_client_id: 'client-uuid-1',
+			}),
+		);
 	});
 
 	it('cashier cannot override manual_delivery_fee on create (uses catalog fee)', async () => {

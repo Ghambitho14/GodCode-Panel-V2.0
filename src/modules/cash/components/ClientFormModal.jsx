@@ -63,20 +63,6 @@ const ClientFormModal = ({ isOpen, onClose, onClientCreated, showNotify, company
                 setLoading(false);
                 return;
             }
-            // Validar teléfono duplicado
-            const { data: existing } = await supabase
-                .from(TABLES.clients)
-                .select('id')
-                .eq('phone', phone)
-                .eq('company_id', companyId)
-                .single();
-
-            if (existing) {
-                showNotify('Ya existe un cliente con este teléfono', 'error');
-                setLoading(false);
-                return;
-            }
-
             const { data, error } = await supabase
                 .from(TABLES.clients)
                 .insert([{
