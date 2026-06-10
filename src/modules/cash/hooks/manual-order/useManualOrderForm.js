@@ -1,5 +1,11 @@
 import { useState, useCallback } from 'react';
 import { formatRut, validateRut } from '@/shared/utils/formatters';
+import { computeDeliveryFee } from '@/lib/delivery-settings';
+import {
+    normalizeManualPhone,
+    fetchClientAddresses,
+    mapAddressToFormFields,
+} from '../../services/clientService';
 
 const initialFormState = {
     client_name: 'CAJA',
@@ -18,7 +24,35 @@ const initialFormState = {
     delivery_named_area_id: '',
     note: '',
     coupon_code: '',
+    selected_client_id: '',
+    saved_addresses: [],
+    selected_address_id: '',
 };
+
+function resolveDeliveryFeeForAddress(branchDeliveryCfg, subtotal, namedAreaId) {
+    if (!branchDeliveryCfg || !namedAreaId) return null;
+    const r = computeDeliveryFee(branchDeliveryCfg, 0, Number(subtotal) || 0, {
+        namedAreaId,
+    });
+    return r.fee >= 0 ? Math.round(r.fee * 100) / 100 : null;
+}
+
+function mergeAddressIntoForm(prev, addressRow, branchDeliveryCfg, subtotal) {
+    const fields = mapAddressToFormFields(addressRow);
+    const addressId = addressRow?.id != null ? String(addressRow.id) : '';
+    const feeFromZone = resolveDeliveryFeeForAddress(
+        branchDeliveryCfg,
+        subtotal,
+        fields.delivery_named_area_id,
+    );
+
+    return {
+        ...prev,
+        ...fields,
+        selected_address_id: addressId,
+        ...(feeFromZone != null ? { delivery_fee: feeFromZone } : {}),
+    };
+}
 
 /**
  * Hook especializado en gestionar todos los estados del formulario del pedido manual:
@@ -30,8 +64,21 @@ export const useManualOrderForm = () => {
     const [rutValid, setRutValid] = useState(true);
     const [phoneValid, setPhoneValid] = useState(true);
 
-    const updateClientName = useCallback((val) => {
-        setForm(prev => ({ ...prev, client_name: val }));
+    const applySavedAddress = useCallback((addressRow, branchDeliveryCfg, subtotal = 0) => {
+        if (!addressRow || typeof addressRow !== 'object') return;
+        setForm((prev) => mergeAddressIntoForm(prev, addressRow, branchDeliveryCfg, subtotal));
+    }, []);
+
+    const updateClientName = useCallback((val, opts = {}) => {
+        setForm((prev) => {
+            const next = { ...prev, client_name: val };
+            if (!opts.fromClientSelect && prev.selected_client_id) {
+                next.selected_client_id = '';
+                next.saved_addresses = [];
+                next.selected_address_id = '';
+            }
+            return next;
+        });
     }, []);
 
     const updateCouponCode = useCallback((val) => {
@@ -42,30 +89,50 @@ export const useManualOrderForm = () => {
         setForm(prev => ({ ...prev, note: val }));
     }, []);
 
-    const updateOrderType = useCallback((val) => {
-        setForm((prev) => ({
-            ...prev,
-            order_type: val,
-            ...(val === 'pickup'
-                ? {
+    const updateOrderType = useCallback((val, branchDeliveryCfg = null, subtotal = 0) => {
+        setForm((prev) => {
+            if (val === 'pickup') {
+                return {
+                    ...prev,
+                    order_type: val,
                     delivery_named_area_id: '',
                     delivery_fee: 0,
                     delivery_address: '',
                     delivery_reference: '',
                     delivery_km: '',
-                  }
-                : {}),
-        }));
+                    selected_address_id: '',
+                };
+            }
+
+            const next = { ...prev, order_type: val };
+            if (
+                val === 'delivery' &&
+                Array.isArray(prev.saved_addresses) &&
+                prev.saved_addresses.length > 0 &&
+                !prev.delivery_address &&
+                !prev.delivery_reference &&
+                !prev.delivery_named_area_id
+            ) {
+                return mergeAddressIntoForm(
+                    next,
+                    prev.saved_addresses[0],
+                    branchDeliveryCfg,
+                    subtotal,
+                );
+            }
+            return next;
+        });
     }, []);
 
     const updateDeliveryAddress = useCallback((val) => {
-        setForm(prev => ({ ...prev, delivery_address: val }));
+        setForm(prev => ({ ...prev, delivery_address: val, selected_address_id: '' }));
     }, []);
 
     const updateDeliveryReference = useCallback((val) => {
         setForm((prev) => ({
             ...prev,
             delivery_reference: typeof val === 'string' ? val : '',
+            selected_address_id: '',
         }));
     }, []);
 
@@ -73,17 +140,19 @@ export const useManualOrderForm = () => {
         setForm((prev) => ({
             ...prev,
             delivery_km: val === '' || val == null ? '' : String(val),
+            selected_address_id: '',
         }));
     }, []);
 
     const updateDeliveryFee = useCallback((val) => {
-        setForm((prev) => ({ ...prev, delivery_fee: Number(val) || 0 }));
+        setForm(prev => ({ ...prev, delivery_fee: Number(val) || 0 }));
     }, []);
 
     const updateDeliveryNamedAreaId = useCallback((val) => {
         setForm((prev) => ({
             ...prev,
             delivery_named_area_id: typeof val === 'string' ? val : '',
+            selected_address_id: '',
         }));
     }, []);
 
@@ -141,33 +210,62 @@ export const useManualOrderForm = () => {
             if (input.length < 6) input = "+56 9 ";
         }
         const cleaned = input;
-        setForm(prev => ({ ...prev, client_phone: cleaned }));
+        setForm((prev) => ({
+            ...prev,
+            client_phone: cleaned,
+            ...(prev.selected_client_id ? {
+                selected_client_id: '',
+                saved_addresses: [],
+                selected_address_id: '',
+            } : {}),
+        }));
 
         const digitCount = cleaned.replace(/\D/g, '').length;
         setPhoneValid(digitCount >= 11);
     }, []);
 
-    const applyClientRecord = useCallback((client) => {
+    const applyClientRecord = useCallback(async (client, opts = {}) => {
         if (!client || typeof client !== 'object') return;
+
+        const { branchDeliveryCfg = null, subtotal = 0 } = opts;
         const name = String(client.name ?? '').trim();
         const rutRaw = String(client.rut ?? client.document ?? '').trim();
         const rut = rutRaw ? formatRut(rutRaw) : '';
-        let phone = String(client.phone ?? '').trim();
-        if (!phone.startsWith('+56 9')) {
-            const digits = phone.replace(/\D/g, '');
-            if (digits.length >= 9) {
-                const local = digits.startsWith('56') ? digits.slice(2) : digits;
-                phone = local.startsWith('9') ? `+56 ${local}` : `+56 9 ${local}`;
-            } else if (!phone) {
-                phone = '+56 9 ';
+        const phone = normalizeManualPhone(client.phone) || '+56 9 ';
+        const clientId = client.id != null ? String(client.id) : '';
+
+        let savedAddresses = [];
+        if (clientId) {
+            try {
+                savedAddresses = await fetchClientAddresses(clientId);
+            } catch {
+                savedAddresses = [];
             }
         }
-        setForm((prev) => ({
-            ...prev,
-            client_name: name || prev.client_name,
-            client_rut: rut || prev.client_rut,
-            client_phone: phone || prev.client_phone,
-        }));
+
+        setForm((prev) => {
+            let next = {
+                ...prev,
+                client_name: name || prev.client_name,
+                client_rut: rut || prev.client_rut,
+                client_phone: phone || prev.client_phone,
+                selected_client_id: clientId,
+                saved_addresses: savedAddresses,
+                selected_address_id: '',
+            };
+
+            if (prev.order_type === 'delivery' && savedAddresses.length > 0) {
+                next = mergeAddressIntoForm(
+                    next,
+                    savedAddresses[0],
+                    branchDeliveryCfg,
+                    subtotal,
+                );
+            }
+
+            return next;
+        });
+
         setRutValid(rut ? validateRut(rut) : false);
         const digitCount = phone.replace(/\D/g, '').length;
         setPhoneValid(digitCount >= 11);
@@ -206,6 +304,7 @@ export const useManualOrderForm = () => {
         handleRutChange,
         handlePhoneChange,
         applyClientRecord,
+        applySavedAddress,
         resetForm,
         getInputStyle
     };

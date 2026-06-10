@@ -8,6 +8,7 @@ import {
     computeDeliveryFee,
     effectiveDeliveryPricingMode,
 } from '@/lib/delivery-settings';
+import { formatSavedAddressLabel, normalizePhoneForSearch } from '../../services/clientService';
 
 const sanitizeInputLive = (text) => {
     if (text == null || text === '') return '';
@@ -16,11 +17,16 @@ const sanitizeInputLive = (text) => {
 
 const normalizeSearch = (value) => String(value ?? '').trim().toLowerCase();
 
-const filterClientsByNamePrefix = (clients, query) => {
+const filterClientsByNameOrPhone = (clients, query) => {
     const q = normalizeSearch(query);
+    const qDigits = normalizePhoneForSearch(query);
     if (!q || !Array.isArray(clients)) return [];
     return clients
-        .filter((c) => normalizeSearch(c?.name).startsWith(q))
+        .filter((c) => {
+            const name = normalizeSearch(c?.name);
+            const phoneDigits = normalizePhoneForSearch(c?.phone);
+            return name.startsWith(q) || (qDigits.length >= 3 && phoneDigits.startsWith(qDigits));
+        })
         .slice(0, 8);
 };
 
@@ -39,6 +45,7 @@ const ClientForm = ({
     updateDeliveryNamedAreaId,
     updateClientName,
     applyClientRecord,
+    applySavedAddress,
     handleRutChange,
     handlePhoneChange,
     rutValid,
@@ -57,8 +64,20 @@ const ClientForm = ({
     const isDelivery = manualOrder.order_type === 'delivery';
 
     const clientSuggestions = useMemo(
-        () => filterClientsByNamePrefix(clients, manualOrder.client_name),
+        () => filterClientsByNameOrPhone(clients, manualOrder.client_name),
         [clients, manualOrder.client_name],
+    );
+
+    const savedAddresses = Array.isArray(manualOrder.saved_addresses)
+        ? manualOrder.saved_addresses
+        : [];
+
+    const clientSelectOpts = useMemo(
+        () => ({
+            branchDeliveryCfg,
+            subtotal: Number(manualOrder.total) || 0,
+        }),
+        [branchDeliveryCfg, manualOrder.total],
     );
 
     const showClientSuggestions =
@@ -164,17 +183,56 @@ const ClientForm = ({
     };
 
     const handleSelectClient = (client) => {
-        applyClientRecord?.(client);
+        applyClientRecord?.(client, clientSelectOpts);
         setClientSuggestionsOpen(false);
     };
 
     const handleClientNameChange = (value) => {
-        updateClientName(sanitizeInputLive(value));
+        updateClientName(sanitizeInputLive(value), { fromClientSelect: false });
         setClientSuggestionsOpen(true);
+    };
+
+    const handleSavedAddressChange = (e) => {
+        const addressId = e.target.value;
+        if (!addressId) {
+            updateDeliveryAddress('');
+            updateDeliveryReference('');
+            updateDeliveryKm('');
+            updateDeliveryNamedAreaId('');
+            return;
+        }
+        const row = savedAddresses.find((a) => String(a.id) === addressId);
+        if (row) {
+            applySavedAddress?.(row, branchDeliveryCfg, Number(manualOrder.total) || 0);
+        }
+    };
+
+    const handleOrderTypeChange = (type) => {
+        updateOrderType(type, branchDeliveryCfg, Number(manualOrder.total) || 0);
     };
 
     const deliveryFields = isDelivery ? (
         <div className="manual-order-fulfillment-fields animate-fade-in">
+            {savedAddresses.length > 0 ? (
+                <div className="manual-order-input-wrapper full-width">
+                    <MapPin size={14} className="manual-order-input-icon" aria-hidden />
+                    <select
+                        id="manual-order-saved-address"
+                        aria-label="Dirección guardada del cliente"
+                        className="manual-order-input"
+                        value={manualOrder.selected_address_id || ''}
+                        onChange={handleSavedAddressChange}
+                    >
+                        <option value="">NUEVA DIRECCIÓN</option>
+                        {savedAddresses.map((addr) => (
+                            <option key={String(addr.id)} value={String(addr.id)}>
+                                {formatSavedAddressLabel(addr)}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            ) : null}
+
             {namedAreaAutoMode ? (
                 <>
                     <div className="manual-order-input-wrapper full-width">
@@ -448,7 +506,7 @@ const ClientForm = ({
                             <button
                                 type="button"
                                 className={`manual-order-order-type-btn${isPickup ? ' is-active' : ''}`}
-                                onClick={() => updateOrderType('pickup')}
+                                onClick={() => handleOrderTypeChange('pickup')}
                             >
                                 <Store size={16} />
                                 LOCAL / RETIRO
@@ -456,7 +514,7 @@ const ClientForm = ({
                             <button
                                 type="button"
                                 className={`manual-order-order-type-btn${isDelivery ? ' is-active' : ''}`}
-                                onClick={() => updateOrderType('delivery')}
+                                onClick={() => handleOrderTypeChange('delivery')}
                             >
                                 <Truck size={16} />
                                 DELIVERY

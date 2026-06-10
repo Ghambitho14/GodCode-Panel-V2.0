@@ -16,6 +16,7 @@ import { buildDeliveryAddressRecord, sanitizeOrder, normalizePaymentBreakdown, i
 import { canOverrideDeliveryFee } from '@/modules/cash/utils/deliveryFeePermissions';
 import { buildGoogleMapsDirectionsUrl } from '@/lib/geo';
 import { printOrderTicket } from '@/modules/cash/admin/utils/receiptPrinting';
+import { normalizeManualPhone } from '@/modules/cash/services/clientService';
 
 function isFiniteLatLng(lat, lng) {
     const a = Number(lat);
@@ -483,13 +484,16 @@ export const ordersService = {
             }
 
             const clientRut = String(orderData.client_rut ?? orderData.client_document ?? '').trim();
+            const clientPhone = normalizeManualPhone(
+                String(orderData.client_phone ?? '').trim(),
+            );
 
             // 3. EJECUTAR TRANSACCIÓN ATÓMICA (RPC)
             // Inventario: confirmar en Supabase que esta RPC descuenta product_inventory_recipe.qty_per_sale
             // multiplicado por la cantidad vendida de cada producto; si no, ajustar la función en SQL.
             const { data: newOrder, error: orderError } = await supabase.rpc('create_order_transaction', {
                 p_client_name: orderData.client_name,
-                p_client_phone: orderData.client_phone,
+                p_client_phone: clientPhone,
                 p_client_rut: clientRut,
                 p_items: normalizedItems,
                 p_total: totalForRpc,
@@ -572,7 +576,7 @@ export const ordersService = {
         const { data: updated, error } = await supabase.rpc('update_order_transaction', {
             p_order_id: orderId,
             p_client_name: String(patch.client_name ?? ''),
-            p_client_phone: String(patch.client_phone ?? ''),
+            p_client_phone: normalizeManualPhone(String(patch.client_phone ?? '')),
             p_client_rut: String(patch.client_rut ?? ''),
             p_items: itemsForOrder,
             p_payment_type: String(patch.payment_type ?? 'tienda'),

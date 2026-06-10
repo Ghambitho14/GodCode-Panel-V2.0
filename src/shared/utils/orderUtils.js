@@ -12,8 +12,8 @@ export const PAYMENT_METHOD_LABELS = {
 	tienda: 'En local'
 };
 
-/** Métodos que se consideran "pago online" para desglose y filtros. */
-const ONLINE_SPECIFIC_METHODS = new Set(['pago_movil', 'zelle', 'transferencia_bancaria', 'stripe', 'mercadopago', 'paypal']);
+/** Métodos de transferencia (comprobante / voucher), no tarjeta procesada online. */
+const TRANSFER_SPECIFIC_METHODS = new Set(['pago_movil', 'zelle', 'transferencia_bancaria']);
 
 /** @typedef {{ cash: number; card: number; online: number }} PaymentBreakdown */
 
@@ -71,10 +71,20 @@ export function paymentTypeToBreakdownMethod(paymentType) {
 export function inferBreakdownMethodFromOrder(order) {
 	if (!order) return 'cash';
 	const specific = String(order.payment_method_specific ?? '').trim().toLowerCase();
-	if (specific === 'efectivo') return 'cash';
-	if (specific === 'tarjeta' || specific === 'stripe') return 'card';
-	if (specific && ONLINE_SPECIFIC_METHODS.has(specific)) return 'online';
-	return paymentTypeToBreakdownMethod(String(order.payment_type ?? ''));
+	if (specific.length > 0) {
+		if (specific === 'efectivo') return 'cash';
+		if (['tarjeta', 'stripe', 'mercadopago', 'paypal', 'card'].includes(specific)) {
+			return 'card';
+		}
+		if (['transferencia_bancaria', 'pago_movil', 'zelle'].includes(specific)) {
+			return 'online';
+		}
+		return 'cash';
+	}
+	const pt = String(order.payment_type ?? '').toLowerCase();
+	if (pt === 'tarjeta' || pt === 'card') return 'card';
+	if (pt === 'online' || pt === 'transferencia') return 'online';
+	return 'cash';
 }
 
 /**
@@ -227,7 +237,8 @@ export function getPaymentLabel(order) {
 export function isOnlineOrder(order) {
 	if (!order) return false;
 	if (order.payment_type === 'online' || order.payment_type === 'transferencia') return true;
-	return Boolean(order.payment_method_specific && ONLINE_SPECIFIC_METHODS.has(order.payment_method_specific));
+	const specific = String(order.payment_method_specific ?? '').trim().toLowerCase();
+	return specific.length > 0 && TRANSFER_SPECIFIC_METHODS.has(specific);
 }
 
 /**
@@ -418,9 +429,16 @@ export function buildOrderDeliveryDriverPack(order, branchName, branchAddress = 
 export function getPaymentSlug(order) {
 	if (!order) return 'cash';
 	const specific = String(order.payment_method_specific ?? '').trim().toLowerCase();
-	if (specific === 'efectivo') return 'cash';
-	if (specific === 'tarjeta' || specific === 'stripe') return 'card';
-	if (specific && ONLINE_SPECIFIC_METHODS.has(specific)) return 'transfer';
+	if (specific.length > 0) {
+		if (specific === 'efectivo') return 'cash';
+		if (['tarjeta', 'stripe', 'mercadopago', 'paypal', 'card'].includes(specific)) {
+			return 'card';
+		}
+		if (['transferencia_bancaria', 'pago_movil', 'zelle'].includes(specific)) {
+			return 'transfer';
+		}
+		return 'cash';
+	}
 	const pt = String(order.payment_type ?? '').toLowerCase();
 	if (pt === 'tarjeta' || pt === 'card') return 'card';
 	if (pt === 'online' || pt === 'transferencia') return 'transfer';
@@ -442,9 +460,16 @@ export function getCashMovementPaymentMethod(order, existingMovements = []) {
 	}
 	if (!order) return 'cash';
 	const specific = String(order.payment_method_specific ?? '').trim().toLowerCase();
-	if (specific === 'efectivo') return 'cash';
-	if (specific === 'tarjeta' || specific === 'stripe') return 'card';
-	if (specific && ONLINE_SPECIFIC_METHODS.has(specific)) return 'online';
+	if (specific.length > 0) {
+		if (specific === 'efectivo') return 'cash';
+		if (['tarjeta', 'stripe', 'mercadopago', 'paypal', 'card'].includes(specific)) {
+			return 'card';
+		}
+		if (['transferencia_bancaria', 'pago_movil', 'zelle'].includes(specific)) {
+			return 'online';
+		}
+		return 'cash';
+	}
 	const pt = String(order.payment_type ?? '').toLowerCase();
 	if (pt === 'online' || pt === 'transferencia') return 'online';
 	if (pt === 'tarjeta' || pt === 'card') return 'card';

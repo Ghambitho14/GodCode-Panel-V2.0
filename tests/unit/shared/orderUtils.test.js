@@ -32,6 +32,20 @@ describe("orderUtils", () => {
 			"cash",
 		);
 		expect(getPaymentSlug({ payment_method_specific: "tarjeta" })).toBe("card");
+		expect(getPaymentSlug({ payment_method_specific: "stripe" })).toBe("card");
+		expect(getPaymentSlug({ payment_method_specific: "mercadopago" })).toBe("card");
+		expect(getPaymentSlug({ payment_method_specific: "transferencia_bancaria" })).toBe(
+			"transfer",
+		);
+		expect(getPaymentSlug({ payment_type: "online", payment_method_specific: "stripe" })).toBe(
+			"card",
+		);
+		expect(getPaymentSlug({ payment_type: "online" })).toBe("transfer");
+	});
+
+	it("isOnlineOrder excludes card processors from menu", () => {
+		expect(isOnlineOrder({ payment_method_specific: "stripe" })).toBe(false);
+		expect(isOnlineOrder({ payment_method_specific: "transferencia_bancaria" })).toBe(true);
 	});
 
 	it("flattenDeliveryAddress from object", () => {

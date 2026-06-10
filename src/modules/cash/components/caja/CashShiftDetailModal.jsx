@@ -62,6 +62,7 @@ function movementPaymentLabel(m) {
     if (m.type === 'cancel') return '—';
     if (m.orders) {
         const label = getPaymentLabel(m.orders);
+        if (label.startsWith('Mixto')) return 'Mixto';
         return PAYMENT_LABEL_SHORT[label] || label;
     }
     if (m.payment_method === 'cash') return 'Efectivo';
@@ -421,18 +422,12 @@ const CashShiftDetailModal = ({ isOpen, onClose, shift, getTotals, orders = [], 
                                 <table className="cash-shift-detail-movements-table cash-movements-table">
                                     <colgroup>
                                         <col className="cash-shift-detail-movements-col-time" />
-                                        <col className="cash-shift-detail-movements-col-type" />
                                         <col className="cash-shift-detail-movements-col-detail" />
-                                        <col className="cash-shift-detail-movements-col-method" />
-                                        <col className="cash-shift-detail-movements-col-num" />
                                     </colgroup>
                                     <thead>
                                         <tr>
                                             <th>Fecha / hora</th>
-                                            <th>Tipo</th>
                                             <th>Detalle</th>
-                                            <th className="cash-shift-detail-movements-table__method">Método</th>
-                                            <th className="cash-shift-detail-movements-table__num">Monto</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -485,73 +480,77 @@ const CashShiftDetailModal = ({ isOpen, onClose, shift, getTotals, orders = [], 
                                                         </span>
                                                     </div>
                                                 </td>
-                                                <td>
-                                                    <span
-                                                        className={`movement-type type-${m.type === 'cancel' ? 'cancel' : m.type}`}
-                                                    >
-                                                        {m.type === 'cancel' ? (
-                                                            <>
-                                                                <XCircle size={12} aria-hidden />
-                                                                Cancelado
-                                                            </>
-                                                        ) : (
-                                                            movementTypeLabel(m)
-                                                        )}
-                                                    </span>
-                                                </td>
                                                 <td className="cash-shift-detail-movements-table__detail">
-                                                    <div className="cash-shift-detail-movement-desc">
-                                                        {m.description || '—'}
-                                                        {clickable ? (
-                                                            <span className="cash-shift-detail-movement-view-hint">
-                                                                <Eye size={12} aria-hidden /> Ver detalle
+                                                    <div className="cash-shift-detail-movement-row">
+                                                        <div className="cash-shift-detail-movement-main">
+                                                            <span
+                                                                className={`movement-type type-${m.type === 'cancel' ? 'cancel' : m.type}`}
+                                                            >
+                                                                {m.type === 'cancel' ? (
+                                                                    <>
+                                                                        <XCircle size={12} aria-hidden />
+                                                                        Cancelado
+                                                                    </>
+                                                                ) : (
+                                                                    movementTypeLabel(m)
+                                                                )}
                                                             </span>
-                                                        ) : null}
-                                                    </div>
-                                                    {m.orders ? (
-                                                        <div className="cash-shift-detail-movement-order">
-                                                            <span className="cash-shift-detail-movement-order__client">
-                                                                {m.orders.client_name || 'Cliente casual'}
-                                                            </span>
-                                                            {Array.isArray(m.orders.items) && m.orders.items.length > 0 ? (
-                                                                <span className="cash-shift-detail-movement-order__items">
-                                                                    {m.orders.items
-                                                                        .map(
-                                                                            (i) =>
-                                                                                `${i.quantity}x ${(i.name ?? '').split(' (')[0]}`
-                                                                        )
-                                                                        .join(', ')}
-                                                                </span>
-                                                            ) : null}
-                                                            {Number(m.orders.delivery_fee) > 0 ? (
-                                                                <span className="cash-shift-detail-movement-order__delivery">
-                                                                    Envío: {fmtHist(m.orders.delivery_fee)}
-                                                                </span>
-                                                            ) : null}
+                                                            <div className="cash-shift-detail-movement-main__body">
+                                                                <div className="cash-shift-detail-movement-desc">
+                                                                    {m.description || '—'}
+                                                                    {clickable ? (
+                                                                        <span className="cash-shift-detail-movement-view-hint">
+                                                                            <Eye size={12} aria-hidden /> Ver detalle
+                                                                        </span>
+                                                                    ) : null}
+                                                                </div>
+                                                                {m.orders ? (
+                                                                    <div className="cash-shift-detail-movement-order">
+                                                                        <span className="cash-shift-detail-movement-order__client">
+                                                                            {m.orders.client_name || 'Cliente casual'}
+                                                                        </span>
+                                                                        {Array.isArray(m.orders.items) && m.orders.items.length > 0 ? (
+                                                                            <span className="cash-shift-detail-movement-order__items">
+                                                                                {m.orders.items
+                                                                                    .map(
+                                                                                        (i) =>
+                                                                                            `${i.quantity}x ${(i.name ?? '').split(' (')[0]}`
+                                                                                    )
+                                                                                    .join(', ')}
+                                                                            </span>
+                                                                        ) : null}
+                                                                        {Number(m.orders.delivery_fee) > 0 ? (
+                                                                            <span className="cash-shift-detail-movement-order__delivery">
+                                                                                Envío: {fmtHist(m.orders.delivery_fee)}
+                                                                            </span>
+                                                                        ) : null}
+                                                                    </div>
+                                                                ) : null}
+                                                            </div>
                                                         </div>
-                                                    ) : null}
-                                                </td>
-                                                <td
-                                                    className="cash-shift-detail-movements-table__method"
-                                                    title={paymentTitle}
-                                                >
-                                                    {paymentLabel}
-                                                </td>
-                                                <td className="cash-shift-detail-movements-table__num">
-                                                    {m.type === 'cancel' ? (
-                                                        <span className="cash-shift-detail-amount-cancel">—</span>
-                                                    ) : (
-                                                        <span
-                                                            className={
-                                                                m.type === 'expense'
-                                                                    ? 'movement-amount amount-minus'
-                                                                    : 'movement-amount amount-plus'
-                                                            }
+                                                        <div
+                                                            className="cash-shift-detail-movement-pay"
+                                                            title={paymentTitle}
                                                         >
-                                                            {m.type === 'expense' ? '−' : '+'}
-                                                            {fmtHist(m.amount)}
-                                                        </span>
-                                                    )}
+                                                            <span className="cash-shift-detail-movement-pay__method">
+                                                                {paymentLabel}
+                                                            </span>
+                                                            {m.type === 'cancel' ? (
+                                                                <span className="cash-shift-detail-amount-cancel">—</span>
+                                                            ) : (
+                                                                <span
+                                                                    className={
+                                                                        m.type === 'expense'
+                                                                            ? 'movement-amount amount-minus'
+                                                                            : 'movement-amount amount-plus'
+                                                                    }
+                                                                >
+                                                                    {m.type === 'expense' ? '−' : '+'}
+                                                                    {fmtHist(m.amount)}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </td>
                                             </tr>
                                             );

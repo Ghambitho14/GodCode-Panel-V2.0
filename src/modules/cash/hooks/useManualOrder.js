@@ -8,6 +8,7 @@ import { validateRut } from '@/shared/utils/formatters';
 import { buildPaymentBreakdownForOrder } from '@/shared/utils/orderUtils';
 import { effectiveDeliveryPricingMode } from '@/lib/delivery-settings';
 import { canOverrideDeliveryFee } from '../utils/deliveryFeePermissions';
+import { normalizeManualPhone } from '../services/clientService';
 
 /**
  * Hook orquestador principal del pedido manual.
@@ -48,6 +49,7 @@ export const useManualOrder = (showNotify, onOrderSaved, onClose, branch, branch
         handleRutChange,
         handlePhoneChange,
         applyClientRecord,
+        applySavedAddress,
         resetForm,
         getInputStyle
     } = useManualOrderForm();
@@ -161,7 +163,7 @@ export const useManualOrder = (showNotify, onOrderSaved, onClose, branch, branch
                 items,
                 total,
                 client_name: sanitizeInput(form.client_name),
-                client_phone: sanitizeInput(form.client_phone),
+                client_phone: normalizeManualPhone(sanitizeInput(form.client_phone)),
                 client_rut: sanitizeInput(form.client_rut),
                 note: sanitizeInput(form.note),
                 branch_id: branch.id,
@@ -269,6 +271,7 @@ export const useManualOrder = (showNotify, onOrderSaved, onClose, branch, branch
         handleRutChange,
         handlePhoneChange,
         applyClientRecord,
+        applySavedAddress,
         handleFileChange,
         removeReceipt,
         addItem,

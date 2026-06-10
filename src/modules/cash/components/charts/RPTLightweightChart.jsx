@@ -1,32 +1,15 @@
 import React, { useEffect, useRef } from 'react';
+import { createChart, AreaSeries, HistogramSeries } from 'lightweight-charts';
 import {
-    createChart,
-    ColorType,
-    AreaSeries,
-    HistogramSeries,
-} from 'lightweight-charts';
-import { formatCurrency } from '@/shared/utils/formatters';
-
-const DEFAULT_AREA = {
-    lineColor: '#e63946',
-    topColor: 'rgba(230, 57, 70, 0.22)',
-    bottomColor: 'rgba(230, 57, 70, 0.02)',
-};
-
-const DEFAULT_HIST = {
-    color: 'rgba(220, 38, 38, 0.82)',
-};
-
-function formatPriceSafe(n) {
-    try {
-        return formatCurrency(n);
-    } catch {
-        return `$${Number(n || 0).toLocaleString('es-CL')}`;
-    }
-}
+    attachResizeObserver,
+    buildAreaColors,
+    buildHistogramColor,
+    createDashboardChartOptions,
+    readAccentColor,
+} from './rptLightweightChartShared';
 
 /**
- * Serie temporal `YYYY-MM-DD` → Lightweight Charts (área o histograma).
+ * Serie temporal `YYYY-MM-DD` → Lightweight Charts (área o histograma, una serie).
  * @param {{ time: string, value: number }[]} props.data
  * @param {'area' | 'histogram'} props.variant
  */
@@ -34,8 +17,8 @@ export default function RPTLightweightChart({
     data,
     variant,
     height = 260,
-    areaColors = DEFAULT_AREA,
-    histogramColor = DEFAULT_HIST.color,
+    areaColors: areaColorsProp,
+    histogramColor: histogramColorProp,
 }) {
     const hostRef = useRef(null);
 
@@ -45,58 +28,27 @@ export default function RPTLightweightChart({
             return undefined;
         }
 
+        const accent = readAccentColor();
+        const areaColors = areaColorsProp ?? buildAreaColors(accent);
+        const histogramColor =
+            histogramColorProp ?? buildHistogramColor(accent, 'bar-solid');
         const w = Math.max(1, el.clientWidth || el.offsetWidth || 320);
 
-        const chart = createChart(el, {
-            width: w,
-            height,
-            layout: {
-                background: { type: ColorType.Solid, color: 'transparent' },
-                textColor: 'var(--admin-text-muted, #64748b)',
-                fontSize: 11,
-                attributionLogo: false,
-            },
-            grid: {
-                vertLines: { color: 'rgba(148, 163, 184, 0.18)' },
-                horzLines: { color: 'rgba(148, 163, 184, 0.12)' },
-            },
-            rightPriceScale: {
-                borderVisible: false,
-                scaleMargins: { top: 0.1, bottom: 0.08 },
-            },
-            timeScale: {
-                borderVisible: false,
-                fixLeftEdge: true,
-                fixRightEdge: true,
-            },
-            crosshair: {
-                vertLine: { width: 1, color: 'rgba(100, 116, 139, 0.35)', labelBackgroundColor: '#475569' },
-                horzLine: { width: 1, color: 'rgba(100, 116, 139, 0.35)', labelBackgroundColor: '#475569' },
-            },
-            localization: {
-                locale: 'es-CL',
-                priceFormatter: formatPriceSafe,
-            },
-            handleScroll: {
-                pressedMouseMove: false,
-                horzTouchDrag: false,
-                vertTouchDrag: false,
-            },
-            handleScale: {
-                mouseWheel: false,
-                pinch: false,
-                axisPressedMouseMove: false,
-            },
-        });
+        const chart = createChart(
+            el,
+            createDashboardChartOptions({ width: w, height, showRightScale: false }),
+        );
 
         if (variant === 'histogram') {
             const s = chart.addSeries(HistogramSeries, {
+                priceScaleId: 'left',
                 color: histogramColor,
                 priceFormat: { type: 'price', precision: 0, minMove: 1 },
             });
             s.setData(data);
         } else {
             const s = chart.addSeries(AreaSeries, {
+                priceScaleId: 'left',
                 lineColor: areaColors.lineColor,
                 topColor: areaColors.topColor,
                 bottomColor: areaColors.bottomColor,
@@ -109,18 +61,13 @@ export default function RPTLightweightChart({
 
         chart.timeScale().fitContent();
 
-        const ro = new ResizeObserver(() => {
-            const nw = Math.max(1, el.clientWidth || el.offsetWidth || 320);
-            chart.applyOptions({ width: nw, height });
-            chart.timeScale().fitContent();
-        });
-        ro.observe(el);
+        const ro = attachResizeObserver(el, chart, height);
 
         return () => {
             ro.disconnect();
             chart.remove();
         };
-    }, [data, variant, height, areaColors.lineColor, areaColors.topColor, areaColors.bottomColor, histogramColor]);
+    }, [data, variant, height, areaColorsProp, histogramColorProp]);
 
     if (!data?.length) return null;
 

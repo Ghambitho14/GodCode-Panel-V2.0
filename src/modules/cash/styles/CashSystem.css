@@ -1673,7 +1673,7 @@
 @media (min-width: 768px) {
     .admin-layout .cash-container .cash-shift-detail-modal__body {
         display: grid;
-        grid-template-columns: minmax(260px, 30%) minmax(0, 1fr);
+        grid-template-columns: minmax(220px, 24%) minmax(0, 1fr);
         align-items: stretch;
     }
 }
@@ -1685,7 +1685,7 @@
     }
 
     .admin-layout .cash-container .cash-shift-detail-modal__body {
-        grid-template-columns: minmax(280px, 28%) minmax(0, 1fr);
+        grid-template-columns: minmax(240px, 22%) minmax(0, 1fr);
     }
 }
 
@@ -1935,25 +1935,17 @@
 .admin-layout .cash-container .cash-shift-detail-movements-table {
     width: 100%;
     min-width: 0;
-    table-layout: fixed;
+    table-layout: auto;
     border-collapse: collapse;
     font-size: 0.82rem;
 }
 
 .admin-layout .cash-container .cash-shift-detail-movements-col-time {
-    width: 4.75rem;
+    width: 1%;
 }
 
-.admin-layout .cash-container .cash-shift-detail-movements-col-type {
-    width: 4.25rem;
-}
-
-.admin-layout .cash-container .cash-shift-detail-movements-col-method {
-    width: 5.5rem;
-}
-
-.admin-layout .cash-container .cash-shift-detail-movements-col-num {
-    width: 5.25rem;
+.admin-layout .cash-container .cash-shift-detail-movements-col-detail {
+    width: 100%;
 }
 
 .admin-layout .cash-container .cash-shift-detail-movements-table thead th {
@@ -1979,7 +1971,7 @@
 }
 
 .admin-layout .cash-container .cash-shift-detail-movements-table td {
-    padding: 10px 12px;
+    padding: 8px 10px;
     vertical-align: top;
     border-bottom: 1px solid var(--cash-border);
 }
@@ -2014,40 +2006,60 @@
     white-space: nowrap;
 }
 
+.admin-layout .cash-container .cash-shift-detail-movement-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+}
+
+.admin-layout .cash-container .cash-shift-detail-movement-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.admin-layout .cash-container .cash-shift-detail-movement-main .movement-type {
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.admin-layout .cash-container .cash-shift-detail-movement-main__body {
+    flex: 1;
+    min-width: 0;
+}
+
 .admin-layout .cash-container .cash-shift-detail-movements-table__detail {
-    padding-right: 6px;
-}
-
-.admin-layout .cash-container .cash-shift-detail-movements-table thead th.cash-shift-detail-movements-table__method,
-.admin-layout .cash-container .cash-shift-detail-movements-table__method {
-    width: 5.5rem;
-    margin: 0;
-    padding: 10px 4px 10px 0;
-    white-space: nowrap;
-    font-size: 0.78rem;
-    color: var(--c-text-muted);
-    vertical-align: top;
-    box-sizing: border-box;
-}
-
-.admin-layout .cash-container .cash-shift-detail-movements-table thead th.cash-shift-detail-movements-table__method {
-    padding-top: 10px;
-    padding-bottom: 10px;
-}
-
-.admin-layout .cash-container .cash-shift-detail-movements-table__num {
-    text-align: right;
-    white-space: nowrap;
-    padding-left: 4px;
     padding-right: 10px;
-    box-sizing: border-box;
+    width: 100%;
+}
+
+.admin-layout .cash-container .cash-shift-detail-movement-pay {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    flex-shrink: 0;
+    min-width: 5.5rem;
+    max-width: 9rem;
+    text-align: right;
+}
+
+.admin-layout .cash-container .cash-shift-detail-movement-pay__method {
+    font-size: 0.75rem;
+    color: var(--c-text-muted);
+    line-height: 1.25;
+    overflow-wrap: anywhere;
 }
 
 .admin-layout .cash-container .cash-shift-detail-movement-desc {
     font-weight: 600;
     color: var(--c-text);
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
 }
 
 .admin-layout .cash-container .cash-shift-detail-movement-order {
@@ -2065,10 +2077,8 @@
 }
 
 .admin-layout .cash-container .cash-shift-detail-movement-order__items {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 100%;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
 }
 
 .admin-layout .cash-container .cash-shift-detail-amount-cancel {
@@ -2098,5 +2108,18 @@
     .admin-layout .cash-container .cash-shift-detail-movements-panel {
         flex: 1;
         min-height: 12rem;
+    }
+
+    .admin-layout .cash-container .cash-shift-detail-movement-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .admin-layout .cash-container .cash-shift-detail-movement-pay {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        align-self: stretch;
+        max-width: none;
     }
 }

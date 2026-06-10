@@ -116,6 +116,7 @@ const ManualOrderModal = ({
         updateOrderType, updateDeliveryAddress, updateDeliveryReference, updateDeliveryKm,
         updateDeliveryFee, updateDeliveryNamedAreaId,
         applyClientRecord,
+        applySavedAddress,
         submitOrder, resetOrder, getInputStyle,
     } = isEditMode ? editHook : createHook;
 
@@ -493,6 +494,7 @@ const ManualOrderModal = ({
             updateDeliveryNamedAreaId={updateDeliveryNamedAreaId}
             updateClientName={updateClientName}
             applyClientRecord={applyClientRecord}
+            applySavedAddress={applySavedAddress}
             handleRutChange={handleRutChange}
             handlePhoneChange={handlePhoneChange}
             rutValid={rutValid}

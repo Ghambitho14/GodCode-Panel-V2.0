@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { supabase, TABLES } from '@/integrations/supabase';
 import { formatRut, validateRut } from '@/shared/utils/formatters';
+import { normalizeManualPhone } from '@/modules/cash/services/clientService';
 
 const MAX_NAME_LENGTH = 200;
 const MIN_PHONE_DIGITS = 9;
@@ -36,7 +37,7 @@ const ClientFormModal = ({ isOpen, onClose, onClientCreated, showNotify, company
         setLoading(true);
 
         const name = sanitizeText(formData.name);
-        const phone = String(formData.phone ?? '').trim();
+        const phone = normalizeManualPhone(String(formData.phone ?? '').trim());
         const rut = String(formData.rut ?? '').trim();
 
         if (name.length < 2) {

@@ -1,3 +1,75 @@
+const sanitizeSpreadsheetCell = (value) => {
+	const raw = value === null || value === undefined ? '' : String(value);
+	const trimmed = raw.trimStart();
+	if (/^[=+\-@]/.test(trimmed)) {
+		return `'${raw}`;
+	}
+	return raw;
+};
+
+const escapeHtml = (value) =>
+	String(value)
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+
+/**
+ * Genera HTML de tabla compatible con Excel (.xls).
+ * @param {Array<Record<string, unknown>>} data
+ * @returns {string}
+ */
+export const buildSpreadsheetHtml = (data) => {
+	if (!data || !data.length) {
+		return '';
+	}
+
+	const headers = Object.keys(data[0]);
+
+	return `
+		<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+		<head>
+			<meta charset="UTF-8">
+			<!--[if gte mso 9]>
+			<xml>
+				<x:ExcelWorkbook>
+					<x:ExcelWorksheets>
+						<x:ExcelWorksheet>
+							<x:Name>Hoja1</x:Name>
+							<x:WorksheetOptions>
+								<x:DisplayGridlines/>
+							</x:WorksheetOptions>
+						</x:ExcelWorksheet>
+					</x:ExcelWorksheets>
+				</x:ExcelWorkbook>
+			</xml>
+			<![endif]-->
+		</head>
+		<body>
+			<table border="1">
+				<thead>
+					<tr>
+						${headers.map((h) => `<th style="background-color: #f0f0f0;">${escapeHtml(h)}</th>`).join('')}
+					</tr>
+				</thead>
+				<tbody>
+					${data
+						.map(
+							(row) => `
+						<tr>
+							${headers.map((h) => `<td>${escapeHtml(sanitizeSpreadsheetCell(row[h]))}</td>`).join('')}
+						</tr>
+					`,
+						)
+						.join('')}
+				</tbody>
+			</table>
+		</body>
+		</html>
+	`;
+};
+
 /**
  * Genera y descarga un archivo CSV compatible con Excel (BOM + Separador punto y coma).
  * @param {Array} data - Array de objetos a exportar
@@ -11,17 +83,8 @@ export const downloadCSV = (data, filename = 'reporte.csv') => {
 	const headers = Object.keys(data[0]);
 	const csvRows = [headers.join(';')];
 
-	const sanitizeSpreadsheetCell = (value) => {
-		const raw = value === null || value === undefined ? '' : String(value);
-		const trimmed = raw.trimStart();
-		if (/^[=+\-@]/.test(trimmed)) {
-			return `'${raw}`;
-		}
-		return raw;
-	};
-
 	for (const row of data) {
-		const values = headers.map(header => {
+		const values = headers.map((header) => {
 			const stringVal = sanitizeSpreadsheetCell(row[header]).replace(/"/g, '""');
 			return `"${stringVal}"`;
 		});
@@ -51,63 +114,7 @@ export const downloadExcel = (data, filename = 'reporte.xls') => {
 		return;
 	}
 
-	const headers = Object.keys(data[0]);
-
-	const sanitizeSpreadsheetCell = (value) => {
-		const raw = value === null || value === undefined ? '' : String(value);
-		const trimmed = raw.trimStart();
-		if (/^[=+\-@]/.test(trimmed)) {
-			return `'${raw}`;
-		}
-		return raw;
-	};
-
-	const escapeHtml = (value) =>
-		String(value)
-			.replace(/&/g, '&amp;')
-			.replace(/</g, '&lt;')
-			.replace(/>/g, '&gt;')
-			.replace(/"/g, '&quot;')
-			.replace(/'/g, '&#39;');
-
-	const html = `
-		<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-		<head>
-			<meta charset="UTF-8">
-			<!--[if gte mso 9]>
-			<xml>
-				<x:ExcelWorkbook>
-					<x:ExcelWorksheets>
-						<x:ExcelWorksheet>
-							<x:Name>Hoja1</x:Name>
-							<x:WorksheetOptions>
-								<x:DisplayGridlines/>
-							</x:WorksheetOptions>
-						</x:ExcelWorksheet>
-					</x:ExcelWorksheets>
-				</x:ExcelWorkbook>
-			</xml>
-			<![endif]-->
-		</head>
-		<body>
-			<table border="1">
-				<thead>
-					<tr>
-						${headers.map(h => `<th style="background-color: #f0f0f0;">${escapeHtml(h)}</th>`).join('')}
-					</tr>
-				</thead>
-				<tbody>
-					${data.map(row => `
-						<tr>
-							${headers.map(h => `<td>${escapeHtml(sanitizeSpreadsheetCell(row[h]))}</td>`).join('')}
-						</tr>
-					`).join('')}
-				</tbody>
-			</table>
-		</body>
-		</html>
-	`;
-
+	const html = buildSpreadsheetHtml(data);
 	const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
 	const link = document.createElement('a');
 	const url = URL.createObjectURL(blob);
@@ -121,4 +128,28 @@ export const downloadExcel = (data, filename = 'reporte.xls') => {
 	link.click();
 	document.body.removeChild(link);
 	URL.revokeObjectURL(url);
+};
+
+/**
+ * Abre la vista previa de la tabla en una pestaña nueva del navegador.
+ * @param {Array} data - Array de objetos a exportar
+ * @returns {boolean} true si se abrió la pestaña
+ */
+export const openSpreadsheetInNewTab = (data) => {
+	if (!data || !data.length) {
+		return false;
+	}
+
+	const html = buildSpreadsheetHtml(data);
+	const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+	const url = URL.createObjectURL(blob);
+	const opened = window.open(url, '_blank', 'noopener,noreferrer');
+
+	if (!opened) {
+		URL.revokeObjectURL(url);
+		return false;
+	}
+
+	window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+	return true;
 };

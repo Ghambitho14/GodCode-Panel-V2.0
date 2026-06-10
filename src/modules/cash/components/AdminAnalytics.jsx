@@ -3,7 +3,7 @@ import {
     ArrowUpRight, ArrowDownRight, Calendar,
     ShoppingBag, Users, DollarSign, CreditCard,
     Smartphone, TrendingUp, Package, Clock, MapPin, Truck,
-    BarChart3, AreaChart, Wallet, Banknote, Download, Loader2, Plus
+    BarChart3, AreaChart, Wallet, Banknote, Download, Loader2, Plus, Eye, ExternalLink
 } from 'lucide-react';
 import { supabase, TABLES } from '@/integrations/supabase';
 import { cashService } from '../services/cashService';
@@ -18,12 +18,13 @@ import {
 import AdminIconSlot from './AdminIconSlot';
 import AdminMenuSelect from './AdminMenuSelect';
 import { formatCurrency } from '@/shared/utils/formatters';
-import { isMenuOrder, getPaymentSlug, getPaymentLabel } from '@/shared/utils/orderUtils';
-import { downloadExcel } from '@/shared/utils/exportUtils';
+import { isMenuOrder, getOrderPaymentBreakdown, getPaymentLabel } from '@/shared/utils/orderUtils';
+import { downloadExcel, openSpreadsheetInNewTab } from '@/shared/utils/exportUtils';
+import SpreadsheetPreviewModal from './SpreadsheetPreviewModal';
 import { isValidBranchId } from '@/shared/utils/safeIds';
 import { useAdmin } from '../admin/pages/AdminProvider';
 import LocalExpenseModal from './expenses/LocalExpenseModal';
-import RPTRosenSalesChart from './charts/RPTRosenSalesChart';
+import RPTSalesLightweightChart from './charts/RPTSalesLightweightChart';
 import RPTRosenBarChart from './charts/RPTRosenBarChart';
 import RPTRosenDonutChart from './charts/RPTRosenDonutChart';
 
@@ -153,6 +154,7 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
     const [loadingAnalyticsOrders, setLoadingAnalyticsOrders] = useState(false);
     const [expenseRefreshNonce, setExpenseRefreshNonce] = useState(0);
     const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
+    const [expensePreviewState, setExpensePreviewState] = useState(null);
     /** @type {'all' | 'operating' | 'cash_withdrawal' | 'order_refund'} */
     const [expenseKindFilter, setExpenseKindFilter] = useState('all');
     const { cashSystem, moveOrder } = useAdmin();
@@ -319,55 +321,76 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
         }
     };
 
-    const handleExportMonthlyManualExpensesExcel = async () => {
-        if (exportExpensesLoading || !companyId) return;
+    const buildMonthlyManualExpensesExportData = useCallback(async () => {
+        if (!companyId) return null;
         const range = getMonthRangeUtc(analyticsDate);
         if (!range) {
             if (showNotify) showNotify('Mes inválido', 'error');
-            return;
+            return null;
         }
+        const rows = await cashService.getManualExpenseMovementsInRange({
+            companyId,
+            branchId: selectedBranch?.id,
+            startIso: range.startIso,
+            endIso: range.endIso,
+        });
+        if (!rows.length) {
+            if (showNotify) showNotify('No hay gastos del local en ese mes', 'info');
+            return null;
+        }
+        const sorted = [...rows].sort(
+            (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+        );
+        const dataToExport = sorted.map((row) => {
+            const sh = row[TABLES.cash_shifts] || row.cash_shifts;
+            const bid = sh?.branch_id;
+            const branchName = bid != null ? (branchNameById[String(bid)] || String(bid)) : '';
+            const d = new Date(row.created_at);
+            const pm = row.payment_method;
+            const metodo =
+                pm === 'cash' ? 'Efectivo' : pm === 'card' ? 'Tarjeta' : pm === 'online' ? 'Transferencia' : String(pm || '');
+            return {
+                Fecha: d.toLocaleDateString('es-CL'),
+                Hora: d.toLocaleTimeString('es-CL'),
+                Tipo: labelForManualExpenseKind(row),
+                Sucursal: branchName,
+                Monto: row.amount,
+                Metodo: metodo,
+                Descripcion: row.description || '',
+            };
+        });
+        const [year, month] = String(analyticsDate).split('-');
+        return {
+            rows: dataToExport,
+            filename: `Gastos_local_${year || '0000'}_${month || '00'}.xls`,
+            title: `Gastos del local — ${analyticsDate}`,
+        };
+    }, [companyId, analyticsDate, selectedBranch?.id, branchNameById, showNotify]);
+
+    const runMonthlyManualExpensesExport = useCallback(async (action) => {
+        if (exportExpensesLoading || !companyId) return;
         setExportExpensesLoading(true);
         try {
-            const rows = await cashService.getManualExpenseMovementsInRange({
-                companyId,
-                branchId: selectedBranch?.id,
-                startIso: range.startIso,
-                endIso: range.endIso,
-            });
-            if (!rows.length) {
-                if (showNotify) showNotify('No hay gastos del local en ese mes', 'info');
-                return;
+            const result = await buildMonthlyManualExpensesExportData();
+            if (!result) return;
+            const { rows, filename, title } = result;
+            if (action === 'modal') {
+                setExpensePreviewState({ rows, filename, title });
+            } else if (action === 'tab') {
+                const opened = openSpreadsheetInNewTab(rows);
+                if (!opened && showNotify) {
+                    showNotify('Permite ventanas emergentes para ver en pestaña', 'info');
+                }
+            } else if (action === 'download') {
+                downloadExcel(rows, filename);
+                if (showNotify) showNotify('Excel de gastos del mes generado', 'success');
             }
-            const sorted = [...rows].sort(
-                (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-            );
-            const dataToExport = sorted.map((row) => {
-                const sh = row[TABLES.cash_shifts] || row.cash_shifts;
-                const bid = sh?.branch_id;
-                const branchName = bid != null ? (branchNameById[String(bid)] || String(bid)) : '';
-                const d = new Date(row.created_at);
-                const pm = row.payment_method;
-                const metodo =
-                    pm === 'cash' ? 'Efectivo' : pm === 'card' ? 'Tarjeta' : pm === 'online' ? 'Transferencia' : String(pm || '');
-                return {
-                    Fecha: d.toLocaleDateString('es-CL'),
-                    Hora: d.toLocaleTimeString('es-CL'),
-                    Tipo: labelForManualExpenseKind(row),
-                    Sucursal: branchName,
-                    Monto: row.amount,
-                    Metodo: metodo,
-                    Descripcion: row.description || '',
-                };
-            });
-            const [year, month] = String(analyticsDate).split('-');
-            downloadExcel(dataToExport, `Gastos_local_${year || '0000'}_${month || '00'}.xls`);
-            if (showNotify) showNotify('Excel de gastos del mes generado', 'success');
         } catch {
             if (showNotify) showNotify('Error al exportar gastos del mes', 'error');
         } finally {
             setExportExpensesLoading(false);
         }
-    };
+    }, [exportExpensesLoading, companyId, buildMonthlyManualExpensesExportData, showNotify]);
 
     const tryOpenRegisterExpenseModal = useCallback(() => {
         if (!selectedBranch?.id || selectedBranch.id === 'all' || !isValidBranchId(selectedBranch.id)) {
@@ -675,13 +698,13 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                       ((totalDeliveryFees - prevTotalDeliveryFees) / prevTotalDeliveryFees) * 100
                   );
 
-        // --- PAYMENT BREAKDOWN (incl. payment_method_specific: Zelle, Pago Móvil, etc.) ---
+        // --- PAYMENT BREAKDOWN (incl. mixtos y payment_method_specific del menú) ---
         const pb = { cash: 0, card: 0, online: 0 };
-        current.forEach(o => {
-            const slug = getPaymentSlug(o);
-            if (slug === 'transfer') pb.online += Number(o.total);
-            else if (slug === 'card') pb.card += Number(o.total);
-            else pb.cash += Number(o.total);
+        current.forEach((o) => {
+            const breakdown = getOrderPaymentBreakdown(o);
+            pb.cash += breakdown.cash;
+            pb.card += breakdown.card;
+            pb.online += breakdown.online;
         });
 
         // --- BRANCH BREAKDOWN ---
@@ -1165,37 +1188,28 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                         </>
                     )}
                 </button>
-                <button
-                    type="button"
-                    onClick={handleExportMonthlyManualExpensesExcel}
-                    disabled={exportExpensesLoading || !companyId}
-                    style={{
-                        padding: '10px 16px',
-                        background: 'rgba(5, 150, 105, 0.95)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: 6,
-                        cursor: exportExpensesLoading || !companyId ? 'not-allowed' : 'pointer',
-                        opacity: exportExpensesLoading || !companyId ? 0.7 : 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        fontSize: '0.9rem',
-                        fontWeight: 500,
-                    }}
-                >
-                    {exportExpensesLoading ? (
-                        <>
-                            <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-                            Generando...
-                        </>
-                    ) : (
-                        <>
-                            <Download size={16} />
-                            Excel gastos del mes
-                        </>
-                    )}
-                </button>
+                <div className="rpt-monthly-expenses-export-group" role="group" aria-label="Exportar gastos del mes">
+                    {[
+                        { action: 'modal', label: 'Ver (modal)', Icon: Eye },
+                        { action: 'tab', label: 'Ver (pestaña)', Icon: ExternalLink },
+                        { action: 'download', label: 'Descargar', Icon: Download },
+                    ].map(({ action, label, Icon }) => (
+                        <button
+                            key={action}
+                            type="button"
+                            onClick={() => runMonthlyManualExpensesExport(action)}
+                            disabled={exportExpensesLoading || !companyId}
+                            className="rpt-monthly-expenses-export-btn"
+                        >
+                            {exportExpensesLoading ? (
+                                <Loader2 size={16} className="rpt-expenses-spin" aria-hidden />
+                            ) : (
+                                <Icon size={16} aria-hidden />
+                            )}
+                            <span>{exportExpensesLoading ? 'Generando...' : label}</span>
+                        </button>
+                    ))}
+                </div>
             </div>
         </div>
     );
@@ -1218,6 +1232,13 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                     showNotify={showNotify}
                     companyId={companyId}
                     onAfterSuccess={handleAfterExpenseMovement}
+                />
+                <SpreadsheetPreviewModal
+                    isOpen={!!expensePreviewState}
+                    onClose={() => setExpensePreviewState(null)}
+                    title={expensePreviewState?.title ?? 'Vista previa'}
+                    rows={expensePreviewState?.rows ?? []}
+                    filename={expensePreviewState?.filename ?? 'reporte.xls'}
                 />
             </div>
         );
@@ -1328,9 +1349,9 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                             </div>
                         </div>
                     </div>
-                    <div className="rpt-chart-wrapper rpt-chart-wrapper--rosen">
+                    <div className="rpt-chart-wrapper rpt-chart-wrapper--lwc">
                         {salesChartPoints.length ? (
-                            <RPTRosenSalesChart
+                            <RPTSalesLightweightChart
                                 points={salesChartPoints}
                                 variant={activeChartKind}
                                 height={days > 90 ? 260 : 280}
@@ -1354,7 +1375,7 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                                 data={[
                                     { label: 'Efectivo', value: paymentBreakdown.cash, color: '#22c55e' },
                                     { label: 'Tarjeta', value: paymentBreakdown.card, color: '#3b82f6' },
-                                    { label: 'Pago online', value: paymentBreakdown.online, color: '#a855f7' },
+                                    { label: 'Transferencia', value: paymentBreakdown.online, color: '#a855f7' },
                                 ]}
                                 height={150}
                             />
@@ -1363,7 +1384,7 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                             {[
                                 { label: 'Efectivo', value: paymentBreakdown.cash, Icon: DollarSign, color: '#22c55e' },
                                 { label: 'Tarjeta', value: paymentBreakdown.card, Icon: CreditCard, color: '#3b82f6' },
-                                { label: 'Pago online', value: paymentBreakdown.online, Icon: Smartphone, color: '#a855f7' },
+                                { label: 'Transferencia', value: paymentBreakdown.online, Icon: Smartphone, color: '#a855f7' },
                             ].map(pm => {
                                 const pct = kpis.total > 0 ? Math.round((pm.value / kpis.total) * 100) : 0;
                                 return (
@@ -1486,6 +1507,13 @@ const AdminAnalytics = ({ orders, clients, branches, showNotify, companyId, sele
                 showNotify={showNotify}
                 companyId={companyId}
                 onAfterSuccess={handleAfterExpenseMovement}
+            />
+            <SpreadsheetPreviewModal
+                isOpen={!!expensePreviewState}
+                onClose={() => setExpensePreviewState(null)}
+                title={expensePreviewState?.title ?? 'Vista previa'}
+                rows={expensePreviewState?.rows ?? []}
+                filename={expensePreviewState?.filename ?? 'reporte.xls'}
             />
         </div>
     );

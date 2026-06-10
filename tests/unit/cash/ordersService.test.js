@@ -138,6 +138,7 @@ describe('ordersService security refactor', () => {
 		expect(rpcMock).toHaveBeenCalledWith(
 			'create_order_transaction',
 			expect.objectContaining({
+				p_client_phone: '+56 9 1111 1111',
 				p_items: expect.any(Array),
 				p_payment_breakdown: null,
 			}),
